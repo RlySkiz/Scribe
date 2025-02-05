@@ -3,6 +3,7 @@ Scribe = Scribe or {}
 Scribe.SettingsWindow = nil ---@type ExtuiWindow|nil
 local keybindScribe ---@type Keybinding
 local keybindNorbScribe ---@type Keybinding
+local keybindWatchWindow ---@type Keybinding
 
 local function openCloseScribe()
     if Scribe and Scribe.Window then
@@ -31,6 +32,15 @@ local function launchNorbScribe()
     testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
 end
 
+---@type WatchWindow?
+WatchWindow = nil
+local function openCloseWatchWindow()
+    if WatchWindow and WatchWindow.Window then
+        WatchWindow.Window.Open = not WatchWindow.Window.Open
+        WatchWindow.Window.Visible = WatchWindow.Window.Open
+    end
+end
+
 function Scribe.GenerateSettingsWindow()
     Scribe.SettingsWindow = Ext.IMGUI.NewWindow(Ext.Loca.GetTranslatedString("hb23f384926b64c349bd61fd84f23c88c3d4d", "Scribe Settings"))
     Scribe.SettingsWindow.Open = false
@@ -54,6 +64,10 @@ function Scribe.GenerateSettingsWindow()
     keybindingsGroup:AddText("Launch Norbscribe")
     keybindNorbScribe = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
         "LaunchNorbScribe", "T", {"Shift"}, launchNorbScribe)
+
+    WatchWindow = require("Lib.Aahz.Client.Classes.WatchWindow")
+    keybindWatchWindow = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
+        "OpenCloseWatchWindow", "Y", { "Alt"}, openCloseWatchWindow)
 
     return Scribe.SettingsWindow
 end

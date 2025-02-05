@@ -16,6 +16,13 @@ function string:split(delimiter)
     table.insert( result, string.sub(self, from))
     return result
 end
+--- Trims leading and trailing whitespace
+---@return string
+function string:trim()
+    --jankawhat?
+    local trimmed = tostring(self):gsub("^%s*(.-)%s*$", "%1")
+    return trimmed
+end
 
 ---@param table table
 ---@param element any

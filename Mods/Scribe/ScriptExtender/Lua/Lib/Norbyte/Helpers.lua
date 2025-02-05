@@ -21,7 +21,7 @@ function IsVector(v)
 end
 
 
---- @param ty TypeInformationRef
+--- @param ty TypeInformation
 function IsTypeScalar(ty)
     return ty.Kind == "Boolean" or ty.Kind == "Enumeration" or ty.Kind == "Float" or ty.Kind == "Integer" or ty.Kind == "String"
 end
@@ -150,6 +150,19 @@ function ObjectPath:Resolve()
     end
 
     return obj
+end
+
+function ObjectPath:__tostring()
+    local pathStr = ""
+    for _, key in ipairs(self.Path) do
+        if type(key) == "number" or Helpers.Format:IsValidUUID(tostring(key)) then
+            pathStr = ("%s[%s]"):format(pathStr, tostring(key))
+        else
+            pathStr = ("%s.%s"):format(pathStr, tostring(key))
+        end
+    end
+    pathStr = pathStr:sub(2) -- Remove the leading dot
+    return "entity." .. pathStr
 end
 
 function ObjectPath:Clone()

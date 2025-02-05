@@ -16,7 +16,7 @@ local builtins = {
 --- @class PropertyEditorDefinition
 --- @field Factory PropertyEditorFactory
 --- @field Supports fun(self: PropertyEditorDefinition, type: TypeInformationRef): boolean
---- @field Create fun(self: PropertyEditorDefinition, holder: ExtuiTreeParent, path: ObjectPath, key: any, value: any, type: TypeInformationRef, setter: fun(value: any)): ExtuiRenderable
+--- @field Create fun(self: PropertyEditorDefinition, holder: ExtuiTreeParent, path: ObjectPath, key: any, value: any, type: TypeInformationRef, setter: fun(value: any), onEntityClick: fun(path:ObjectPath)): ExtuiRenderable
 PropertyEditorDefinition = {}
 
 
@@ -32,10 +32,10 @@ for i,editor in ipairs(builtins) do
     PropertyEditorFactory.Editors[i] = editor
 end
 
-function PropertyEditorFactory:CreateEditor(holder, path, key, value, type, setter)
+function PropertyEditorFactory:CreateEditor(holder, path, key, value, type, setter, onEntityClick)
     for n,editor in pairs(self.Editors) do
         if editor:Supports(type) then
-            return editor:Create(holder, path, key, value, type, setter)
+            return editor:Create(holder, path, key, value, type, setter, onEntityClick) --[[@as ExtuiStyledRenderable]]
         end
     end
 

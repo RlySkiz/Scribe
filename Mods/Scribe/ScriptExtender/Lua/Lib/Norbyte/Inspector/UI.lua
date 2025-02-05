@@ -47,7 +47,11 @@ function Inspector:Init(instanceId)
     self.Window.IDContext = instanceId
     self.Window:SetSize({500, 500}, "FirstUseEver")
     self.Window.Closeable = true
+    local viewportMinConstraints = {400, 400}
+    self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1]*2, viewportMinConstraints[2])
     local layoutTab = self.Window:AddTable("", 2)
+    layoutTab:AddColumn("InspectorTreeView", "WidthStretch", 15) -- proportional
+    layoutTab:AddColumn("InspectorPropertyView", "WidthStretch", 20) -- proportional
     local layoutRow = layoutTab:AddRow()
     local leftCol = layoutRow:AddCell()
     local rightCol = layoutRow:AddCell()
@@ -56,7 +60,8 @@ function Inspector:Init(instanceId)
     self.TargetLabel = self.LeftContainer:AddText("")
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
-    self.PropertiesView.OnEntityClick = function (path)
+    self.PropertiesView.OnEntityClick = function (path) -- FIXME can separate this out
+        RPrint("Clicked OnEntityClick")
         local i = self:GetOrCreate(path, self.PropertyInterface)
         i:ExpandNode(i.TreeView)
         i.TreeView.DefaultOpen = true

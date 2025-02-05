@@ -213,8 +213,8 @@ function Imgui.SetChunkySeparator(e)
 end
 
 ---@param tooltip ExtuiTooltip
----@param contentFunc? fun(tooltip:ExtuiTooltip):ExtuiTooltip
----@return ExtuiTooltip|nil
+---@param contentFunc? fun(tooltip:ExtuiTooltip):ExtuiTooltip?
+---@return ExtuiTooltip?
 function Imgui.CreateSimpleTooltip(tooltip, contentFunc)
     Imgui.SetPopupStyle(tooltip)
     if contentFunc then

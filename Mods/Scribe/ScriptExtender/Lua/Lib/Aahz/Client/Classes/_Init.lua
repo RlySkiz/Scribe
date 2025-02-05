@@ -5,4 +5,5 @@ RequireFiles("Lib/Aahz/Client/Classes/", {
     "ImguiServerEventLogger",
     "ScribeLogger",
     "ScribeSettings",
+    "WatchWindow",
 })

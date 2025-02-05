@@ -199,7 +199,8 @@ function ImguiECSLogger:OnTick()
                 if changes.Destroy then msg = msg .. "\x1b[31m Destroyed" end
                 print(msg)
             end
-            local newEntry = ImguiLogEntry:New{
+            local newEntry = EntityLogEntry:New{
+                Entity = entity,
                 TimeStamp = self.FrameNo,
                 _Entry = self:GetEntityName(entity),
                 _FilterableEntry = self:GetEntityName(entity),
