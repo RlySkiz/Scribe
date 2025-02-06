@@ -31,7 +31,7 @@ function TextEditor:Create(holder, path, key, value, type, setter)
                 setter(newText)
             end
         else
-            RPrint(string.format("Didn't change a UUID for %s (%s)", key, c.UserData.TypeName))
+            -- RPrint(string.format("Didn't change a UUID for %s (%s)", key, c.UserData.TypeName))
             setter(cb.Text)
         end
     end
