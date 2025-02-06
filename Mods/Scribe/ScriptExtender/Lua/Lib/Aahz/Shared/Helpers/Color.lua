@@ -5,7 +5,7 @@ Helpers.Color = Helpers.Color or {}
 ---@param hex string
 ---@param alpha number? 0.0-1.0
 ---@return vec4
-function Helpers.Color:HexToRGBA(hex, alpha)
+function Helpers.Color.HexToRGBA(hex, alpha)
     hex = hex:gsub("#", "")
     local r,g,b
     alpha = alpha or 1.0
@@ -33,13 +33,13 @@ end
 ---@param b number
 ---@param a number
 ---@return table<number>
-function Helpers.Color:NormalizedRGBA(r, g, b, a)
+function Helpers.Color.NormalizedRGBA(r, g, b, a)
     return { r / 255, g / 255, b / 255, a }
 end
 ---normalized version of HexToRGBA
 ---@param hex string
 ---@param alpha number
-function Helpers.Color:HexToNormalizedRGBA(hex, alpha)
-    local h = self:HexToRGBA(hex, alpha)
-    return self:NormalizedRGBA(h[1], h[2], h[3], h[4])
+function Helpers.Color.HexToNormalizedRGBA(hex, alpha)
+    local h = Helpers.Color.HexToRGBA(hex, alpha)
+    return Helpers.Color.NormalizedRGBA(h[1], h[2], h[3], h[4])
 end

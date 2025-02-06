@@ -56,10 +56,17 @@ function table.indexOf(table, element)
     return nil
 end
 
+---Checks if table is empty (using next())
+---@param tbl table
+---@return boolean
 function table.isEmpty(tbl)
     if not tbl then return true end
     return next(tbl) == nil
 end
+
+---Returns count of associative table's kv pairs
+---@param tbl table
+---@return integer
 function table.count(tbl)
     if not tbl then return 0 end
     local count = 0
@@ -67,6 +74,39 @@ function table.count(tbl)
     return count
 end
 
+---Shallow copy of table, optionally copies metatable
+---@param t table
+---@param copyMetatable boolean?
+---@return table
+function table.shallowCopy(t, copyMetatable)
+    local tbl = {}
+    for k, v in pairs(t) do
+        tbl[k] = v
+    end
+    if copyMetatable then
+        setmetatable(tbl, getmetatable(t))
+    end
+    return tbl
+end
+
+---Deep copy, recursive and updates new metatable to original metatable
+---@param t table
+---@return table
+function table.deepCopy(t)
+    if type(t) ~= "table" then return t end
+
+    local mt = getmetatable(t)
+    local tbl = {}
+    for k, v in pairs(t) do
+        if type(v) == "table" then
+            v = table.deepCopy(v)
+        end
+        tbl[k] = v
+    end
+
+    setmetatable(tbl, mt)
+    return tbl
+end
 
 ---Associative table pairs iterator, returns values sorted based on keys; optional boolean to specify descending order
 ---Eg. for key, v in table.pairsByKeys(someTable) do

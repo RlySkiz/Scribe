@@ -49,7 +49,6 @@ function ImguiServerEventLogger:CreateTab(tab)
     self.Window = self.ContainerTab:AddChildWindow("Scribe_ServerEventLogger")
     self.Window.IDContext = "Scribe_ServerEventLogger"
     self.Window.Size = {610,625}
-    Imgui.NewStyling(self.Window)
     self:InitializeLayout()
     self:RebuildLog()
 end
