@@ -4,8 +4,11 @@ local ObjectPath = H.ObjectPath
 local IsArrayOfScalarTypes = H.IsArrayOfScalarTypes
 local IsTypeScalar = H.IsTypeScalar
 
+Scribe = Scribe or {} -- FIXME
+Scribe.AllWindows = Scribe.AllWindows or {}
+
 --- @class WatchWindow
---- @field Window ExtuiWindow
+--- @field Window ExtuiWindow?
 --- @field WatchTable ExtuiTable
 --- @field SubscriptionHandlesMap table<EntityComponentKey, integer>
 --- @field Watches table<string, {Entity: EntityHandle, PropertyPath: ObjectPath, PropertyValue: any, ValueText: ExtuiText?}>
@@ -52,6 +55,10 @@ function WatchWindow:Init()
     self.Window:SetSize({600, 400}, "FirstUseEver")
     self.Window.Open = false
     self.Window.Closeable = true
+
+    table.insert(Scribe.AllWindows, self.Window)
+    DefaultImguiTheme:Apply(self.Window)
+
     local viewportMinConstraints = {400, 200}
     self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
     -- self.Window.AlwaysAutoResize = true

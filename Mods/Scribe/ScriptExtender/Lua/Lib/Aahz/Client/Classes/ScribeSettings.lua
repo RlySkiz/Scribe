@@ -29,7 +29,13 @@ local function openCloseScribeChanged()
 end
 local testInspector
 local function launchNorbScribe()
-    testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
+    if not testInspector then
+        testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
+        testInspector:MakeGlobal()
+    else
+        testInspector.Window.Open = not testInspector.Window.Open
+        testInspector.Window.Visible = testInspector.Window.Open
+    end
 end
 
 ---@type WatchWindow?
@@ -47,7 +53,9 @@ function Scribe.GenerateSettingsWindow()
     Scribe.SettingsWindow.Closeable = true
     -- settingsWindow.AlwaysAutoResize = true -- TODO need saved settings
     Scribe.SettingsWindow.AlwaysAutoResize = LocalSettings:GetOr(true, Static.Settings.SettingsAutoResize)
-    Imgui.NewStyling(Scribe.SettingsWindow)
+
+    table.insert(Scribe.AllWindows, Scribe.SettingsWindow) -- FIXME
+    DefaultImguiTheme:Apply(Scribe.SettingsWindow) -- Testing only
 
     local viewportMinConstraints = {250, 850}
     Scribe.SettingsWindow:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
@@ -66,8 +74,12 @@ function Scribe.GenerateSettingsWindow()
         "LaunchNorbScribe", "T", {"Shift"}, launchNorbScribe)
 
     WatchWindow = require("Lib.Aahz.Client.Classes.WatchWindow")
+    keybindingsGroup:AddText("Open Watch Window") -- Testing
     keybindWatchWindow = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
         "OpenCloseWatchWindow", "Y", { "Alt"}, openCloseWatchWindow)
+
+    Scribe.SettingsWindow:AddSeparatorText("ImguiThemes")
+    ImguiTheme.CreateUpdateableDisplay(Scribe.SettingsWindow)
 
     return Scribe.SettingsWindow
 end

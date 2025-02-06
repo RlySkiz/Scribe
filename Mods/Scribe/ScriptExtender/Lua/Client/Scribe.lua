@@ -6,8 +6,11 @@
 --
 ---------------------------------------------------------------------------------------
 
+-- FIXME Need to settle on global Scribe somewhere and annotate :concernedsip:
 Scribe = Scribe or {}
 Scribe.__index = Scribe
+Scribe.AllWindows = Scribe.AllWindows or {}
+Scribe.ImguiTheme = DefaultImguiTheme
 
 local w = Ext.IMGUI.NewWindow("Scribe")
 
@@ -892,3 +895,4 @@ end)
 
 initializeScribe(w)
 Scribe.Window = w
+table.insert(Scribe.AllWindows, w)

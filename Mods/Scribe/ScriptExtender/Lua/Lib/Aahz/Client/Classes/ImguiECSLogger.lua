@@ -74,7 +74,6 @@ function ImguiECSLogger:CreateTab(tab)
     self.Window = self.ContainerTab:AddChildWindow("Scribe_ECSLogger")
     self.Window.IDContext = "Scribe_ECSLogger"
     self.Window.Size = {610,625}
-    Imgui.NewStyling(self.Window)
     self.Window:SetStyle("FrameRounding", 5) -- soft square
     self:InitializeLayout()
 end
