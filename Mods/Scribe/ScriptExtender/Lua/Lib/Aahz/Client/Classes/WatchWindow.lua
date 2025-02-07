@@ -57,7 +57,6 @@ function WatchWindow:Init()
     self.Window.Closeable = true
 
     table.insert(Scribe.AllWindows, self.Window)
-    DefaultImguiTheme:Apply(self.Window)
 
     local viewportMinConstraints = {400, 200}
     self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])

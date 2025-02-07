@@ -29,10 +29,7 @@ local function openCloseScribeChanged()
 end
 local testInspector
 local function launchNorbScribe()
-    if not testInspector then
-        testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
-        testInspector:MakeGlobal()
-    else
+    if testInspector then
         testInspector.Window.Open = not testInspector.Window.Open
         testInspector.Window.Visible = testInspector.Window.Open
     end
@@ -48,6 +45,11 @@ local function openCloseWatchWindow()
 end
 
 function Scribe.GenerateSettingsWindow()
+    -- FIXME Get NorbInspect ready, this should go in a main Scribe.lua somewhere...
+    testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
+    testInspector:MakeGlobal()
+    testInspector.Window.Open = false
+
     Scribe.SettingsWindow = Ext.IMGUI.NewWindow(Ext.Loca.GetTranslatedString("hb23f384926b64c349bd61fd84f23c88c3d4d", "Scribe Settings"))
     Scribe.SettingsWindow.Open = false
     Scribe.SettingsWindow.Closeable = true
@@ -55,7 +57,6 @@ function Scribe.GenerateSettingsWindow()
     Scribe.SettingsWindow.AlwaysAutoResize = LocalSettings:GetOr(true, Static.Settings.SettingsAutoResize)
 
     table.insert(Scribe.AllWindows, Scribe.SettingsWindow) -- FIXME
-    DefaultImguiTheme:Apply(Scribe.SettingsWindow) -- Testing only
 
     local viewportMinConstraints = {250, 850}
     Scribe.SettingsWindow:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
@@ -79,7 +80,7 @@ function Scribe.GenerateSettingsWindow()
         "OpenCloseWatchWindow", "Y", { "Alt"}, openCloseWatchWindow)
 
     Scribe.SettingsWindow:AddSeparatorText("ImguiThemes")
-    ImguiTheme.CreateUpdateableDisplay(Scribe.SettingsWindow)
+    ImguiThemeManager:CreateUpdateableDisplay(Scribe.SettingsWindow)
 
     return Scribe.SettingsWindow
 end

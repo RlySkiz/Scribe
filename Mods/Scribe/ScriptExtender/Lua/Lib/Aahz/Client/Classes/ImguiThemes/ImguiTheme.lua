@@ -127,12 +127,11 @@ local relatedProps = {
 ---@field Name string
 ---@field Element ExtuiStyledRenderable
 
----@type ImguiTheme[]
-local availableThemes = {}
 ---@type table<integer, ThemeTuple> table<imguiElement.Handle, themeName>
 local appliedElements = {}
 
 ---@class ImguiTheme: MetaClass
+---@field ID Guid
 ---@field Name string
 ---@field Colors table<GuiColor, vec4>
 ---@field ThemeColors table<string, HexColor>
@@ -149,16 +148,28 @@ function ImguiTheme:SetDefaults()
     end
     self.ThemeColors = themeColors
 end
+--- Given valid data, creates and returns a ColorPreset
+---@param data table<string,string|vec4>
+---@return ImguiTheme|nil
+function ImguiTheme.CreateFromData(data)
+    -- check data is valid,
+    --TODO include styles
+    if data ~= nil and data.ID ~= nil and data.Name ~= nil and data.ThemeColors ~= nil then
+        local c = ImguiTheme:New{ID = data.ID, Name = data.Name, ThemeColors = data.ThemeColors}
+        return c
+    else
+        return SWarn("Couldn't create color theme from data.")
+    end
+end
 
 ---@private
 function ImguiTheme:Init()
+    self.ID = self.ID or Helpers.Format.CreateUUID()
+    self.Name = self.Name or "Generic"
     self.Colors = self.Colors or {}
     self.Styles = self.Styles or {}
+    SPrint("Created theme: %s (%s)", self.Name, self.ID)
     self:UpdateImguiTheme()
-    table.insert(availableThemes, self)
-end
-function ImguiTheme:GetAvailableThemes()
-    return table.shallowCopy(availableThemes)
 end
 
 ---@param el ExtuiStyledRenderable
@@ -184,81 +195,6 @@ function ImguiTheme:Apply(el)
 
     return el
 end
----Used to display a theme in IMGUI, changeable and updating in realtime
----@param holder ExtuiTreeParent
-function ImguiTheme.CreateUpdateableDisplay(holder)
-    local optionNames = {}
-    local optionMap = {}
-    for i,theme in ipairs(availableThemes) do
-        table.insert(optionNames, theme.Name)
-        optionMap[theme.Name] = i
-    end
-
-    local themeChild = holder:AddChildWindow("")
-    themeChild.Size = {400, 360}
-
-    themeChild:AddText("Themes:")
-    local themeDropdown = themeChild:AddCombo("")
-    themeDropdown.SameLine = true
-    themeDropdown.ItemWidth = 180
-    themeDropdown.Options = optionNames
-    themeDropdown.SelectedIndex = 0
-
-    local globalApplyButton = themeChild:AddButton("Apply")
-    globalApplyButton.SameLine = true
-    globalApplyButton:Tooltip():AddText("Applies selected them to all Scribe windows.")
-    globalApplyButton.OnClick = function()
-        if Scribe and Scribe.AllWindows then
-            local themeName = Imgui.Combo.GetSelected(themeDropdown)
-            local imguiTheme = availableThemes[optionMap[themeName]]
-            for _, window in ipairs(Scribe.AllWindows) do
-                -- Check if imgui element still exists
-                if pcall(function() return window.Handle end) then
-                    imguiTheme:Apply(window)
-                end
-            end
-        end
-    end
-
-    local layoutTable = themeChild:AddTable("", 2)
-
-    local function GenerateThemeColorDisplay(imguiTheme)
-        Imgui.ClearChildren(layoutTable)
-        local layoutTableRow = layoutTable:AddRow()
-        
-        local c1 = layoutTableRow:AddCell()
-        local c2 = layoutTableRow:AddCell()
-        local count = 0
-        local tblSize = table.count(imguiTheme.ThemeColors)
-        for themeKey,hex in table.pairsByKeys(imguiTheme.ThemeColors) do
-            -- Use the left cell for first half of colors, right cell for second half
-            local cell = count < tblSize/2 and c1 or c2
-            count = count + 1
-
-            local c = HexToNormalizedRGBA(hex, 1.0)
-            c[4] = nil -- dump alpha
-            local ce = cell:AddColorEdit(themeKey, c)
-            ce.NoInputs = true
-            ce.NoAlpha = true
-            ce.Float = true
-            ce.UserData = {
-                OriginalColor = c,
-                ThemeKey = themeKey,
-            }
-            ce.OnChange = function()
-                -- keep old alpha
-                imguiTheme:UpdateIndividualColor(ce.UserData.ThemeKey, ce.Color)
-            end
-        end
-    end
-
-    themeDropdown.OnChange = function()
-        local themeName = Imgui.Combo.GetSelected(themeDropdown)
-        local imguiTheme = availableThemes[optionMap[themeName]]
-        GenerateThemeColorDisplay(imguiTheme)
-    end
-    themeDropdown:OnChange() -- trigger generation once
-end
 
 ---Updates an individual color
 ---@param themeColorKey ThemeKey
@@ -273,6 +209,10 @@ function ImguiTheme:UpdateIndividualColor(themeColorKey, color, alpha)
         local c = { color[1], color[2], color[3], alpha or a}
         self.Colors[key] = c
     end
+    -- update hex color
+    local newHex = Helpers.Color.NormalizedRGBToHex(color[1], color[2], color[3])
+    self.ThemeColors[themeColorKey] = newHex
+
     -- If there are any elements using this theme, update them with the change
     for handle, themeTuple in pairs(appliedElements) do
         if themeTuple.Name == self.Name then
@@ -285,6 +225,8 @@ function ImguiTheme:UpdateIndividualColor(themeColorKey, color, alpha)
             end
         end
     end
+    -- Assume we've made changes, queue a save with the ImguiThemeManager
+    ImguiThemeManager:QueueSave()
 end
 
 ---@protected

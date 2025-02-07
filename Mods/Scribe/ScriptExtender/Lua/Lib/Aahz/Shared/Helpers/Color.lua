@@ -43,3 +43,14 @@ function Helpers.Color.HexToNormalizedRGBA(hex, alpha)
     local h = Helpers.Color.HexToRGBA(hex, alpha)
     return Helpers.Color.NormalizedRGBA(h[1], h[2], h[3], h[4])
 end
+--- Converts a normalized (0~1) RGBA value to a hex color string without the alpha component
+---@param r number 0~1
+---@param g number 0~1
+---@param b number 0~1
+---@return string
+function Helpers.Color.NormalizedRGBToHex(r, g, b)
+    r = math.floor(r * 255)
+    g = math.floor(g * 255)
+    b = math.floor(b * 255)
+    return string.format("#%02x%02x%02x", r, g, b)
+end

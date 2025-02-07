@@ -48,7 +48,6 @@ function Inspector:Init(instanceId)
     self.Window:SetSize({500, 500}, "FirstUseEver")
     self.Window.Closeable = true
     table.insert(Scribe.AllWindows, self.Window)
-    DefaultImguiTheme:Apply(self.Window)
 
     -- Menu stuff
     local windowMainMenu = self.Window:AddMainMenu()
@@ -92,13 +91,16 @@ function Inspector:Init(instanceId)
 
     self.Window.OnClose = function (e)
         self:UpdateInspectTarget(nil)
-        self.Window:Destroy()
+        if not self.IsGlobal then
+            self.Window:Destroy()
+        end
     end
 end
 
 
 function Inspector:MakeGlobal()
-    self.Window.Closeable = true
+    self.IsGlobal = true
+    self.Window.Closeable = false
     self.TargetHoverLabel.Visible = true
     self.TargetLabel.SameLine = true
     Ext.Events.Tick:Subscribe(function ()

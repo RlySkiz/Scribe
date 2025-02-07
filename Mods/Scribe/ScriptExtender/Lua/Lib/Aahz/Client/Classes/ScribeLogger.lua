@@ -24,7 +24,6 @@ function ScribeLogger:CreateWindow()
     self.Window.AlwaysAutoResize = true
     
     table.insert(Scribe.AllWindows, self.Window)
-    DefaultImguiTheme:Apply(self.Window)
 
     local viewportMinConstraints = {500, 500}
     self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])

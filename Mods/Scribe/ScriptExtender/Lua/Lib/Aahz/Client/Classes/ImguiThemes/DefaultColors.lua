@@ -1,4 +1,5 @@
-DefaultImguiTheme = ImguiTheme:New({
+local default = {
+    ID = "00000000-0000-0000-0000-000000000000",
     Name = "Default",
     ThemeColors = {
         ["Accent1"] = "#2c3156",
@@ -16,8 +17,9 @@ DefaultImguiTheme = ImguiTheme:New({
         ["Black1"] = "#0b1420",
         ["Black2"] = "#0c0c0c",
     },
-})
-SkizTheme = ImguiTheme:New({
+}
+local skizTheme = {
+    ID = "44b9b09d-589a-4303-8b01-07f450e7b4b6",
     Name = "SkizTheme",
     ThemeColors = {
         ["Accent1"] = "#476065",
@@ -35,8 +37,9 @@ SkizTheme = ImguiTheme:New({
         ["Black1"] = "#242424",
         ["Black2"] = "#0c0c0c",
     }
-})
-EasyTheme = ImguiTheme:New({
+}
+local easyTheme = {
+    ID = "dd5c0be7-3117-408f-b354-f9b1611592d8",
     Name = "EasyTheme",
     ThemeColors = {
         ["Accent1"] = "#463257",
@@ -54,8 +57,9 @@ EasyTheme = ImguiTheme:New({
         ["Black1"] = "#242424",
         ["Black2"] = "#0c0c0c",
     }
-})
-HighContrast = ImguiTheme:New({
+}
+local highContrast = {
+    ID = "d67de5a9-727c-4c92-9ec2-2181a56921e4",
     Name = "HighContrast",
     ThemeColors = {
         ["Accent1"] = "#EBEBEB",
@@ -73,10 +77,11 @@ HighContrast = ImguiTheme:New({
         ["Black1"] = "#7b7b7b",
         ["Black2"] = "#0c0c0c",
     },
-})
+}
 
 -- TODO https://venngage.com/tools/accessible-color-palette-generator
-ColorBlind1 = ImguiTheme:New({
+local colorBlind1 = {
+    ID = "6f530990-f42d-44e3-82cb-ffda22fac4a5",
     Name = "ColorBlind1",
     ThemeColors = {
         ["Accent1"] = "#EBEBEB",
@@ -94,4 +99,12 @@ ColorBlind1 = ImguiTheme:New({
         ["Black1"] = "#7b7b7b",
         ["Black2"] = "#0c0c0c",
     },
-})
+}
+local defaultImguiThemes = {
+    default,
+    skizTheme,
+    easyTheme,
+    highContrast,
+    colorBlind1,
+}
+return defaultImguiThemes
