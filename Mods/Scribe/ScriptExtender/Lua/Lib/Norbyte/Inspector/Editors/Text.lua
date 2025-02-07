@@ -13,7 +13,7 @@ function TextEditor:Create(holder, path, key, value, type, setter)
         IsUuid = type.TypeName == "Guid",
         TypeName = type.TypeName,
     }
-    if Helpers.Format:IsValidUUID(value) then
+    if Helpers.Format.IsValidUUID(value) then
         -- treat it as a UUID field too
         cb.UserData.IsUuid = true
         cb:SetColor("Text", Imgui.Colors.MediumSeaGreen)
@@ -23,7 +23,7 @@ function TextEditor:Create(holder, path, key, value, type, setter)
     cb.OnChange = function (c)
         if c.UserData and c.UserData.IsUuid then
             local newText = c.Text:trim()
-            if not Helpers.Format:IsValidUUID(newText) then
+            if not Helpers.Format.IsValidUUID(newText) then
                 c:SetColor("Text", Imgui.Colors.FireBrick)
             else
                 -- new value must also be a valid uuid

@@ -155,7 +155,7 @@ end
 function ObjectPath:__tostring()
     local pathStr = ""
     for _, key in ipairs(self.Path) do
-        if type(key) == "number" or Helpers.Format:IsValidUUID(tostring(key)) then
+        if type(key) == "number" or Helpers.Format.IsValidUUID(tostring(key)) then
             pathStr = ("%s[%s]"):format(pathStr, tostring(key))
         else
             pathStr = ("%s.%s"):format(pathStr, tostring(key))

@@ -93,7 +93,7 @@ function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
     if propTypeInfo then
         displayType = string.format("%s (%s)", propTypeInfo.TypeName, propTypeInfo.Kind)
     else
-        if (valType == "string" or valType == "FixedString") and Helpers.Format:IsValidUUID(tostring(currentValue)) then
+        if (valType == "string" or valType == "FixedString") and Helpers.Format.IsValidUUID(tostring(currentValue)) then
             displayType = "UUID (string)"
         else
             displayType = valType

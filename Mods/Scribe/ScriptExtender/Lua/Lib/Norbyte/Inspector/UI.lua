@@ -98,7 +98,7 @@ end
 
 
 function Inspector:MakeGlobal()
-    self.Window.Closeable = false
+    self.Window.Closeable = true
     self.TargetHoverLabel.Visible = true
     self.TargetLabel.SameLine = true
     Ext.Events.Tick:Subscribe(function ()
