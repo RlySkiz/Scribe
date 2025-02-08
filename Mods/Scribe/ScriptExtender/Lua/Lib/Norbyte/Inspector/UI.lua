@@ -38,6 +38,7 @@ function Inspector:GetOrCreate(entity, intf)
     local i = self:New(intf)
     i:Init(tostring(entity))
     i:UpdateInspectTarget(entity)
+    ImguiThemeManager:Apply(i.Window)
     return i
 end
 
@@ -79,6 +80,7 @@ function Inspector:Init(instanceId)
     self.TargetHoverLabel = self.LeftContainer:AddText("Hovered: ")
     self.TargetHoverLabel.Visible = false
     self.TargetLabel = self.LeftContainer:AddText("")
+    self.EntityCardContainer = self.LeftContainer:AddGroup("")
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
     self.PropertiesView.OnEntityClick = function (path) -- FIXME can separate this out
@@ -164,12 +166,15 @@ end
 
 ---@param target EntityHandle|string?
 function Inspector:UpdateInspectTarget(target)
+    if self.EntityCardContainer ~= nil then
+        Imgui.ClearChildren(self.EntityCardContainer)
+    end
     if self.TreeView ~= nil then
         self.LeftContainer:RemoveChild(self.TreeView)
         self.TreeView = nil
     end
 
-    local targetEntity = target
+    local targetEntity = target --[[@as EntityHandle]]
     if type(target) == "string" then
         targetEntity = Ext.Entity.Get(target)
     end
@@ -182,6 +187,7 @@ function Inspector:UpdateInspectTarget(target)
         self.Target = targetEntity
         self.TargetId = target
         self.Instances[targetEntity] = self
+        self:GenerateEntityCard(targetEntity)
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
@@ -190,6 +196,32 @@ function Inspector:UpdateInspectTarget(target)
     else
         self.Window.Label = "Object Inspector"
     end
+end
+
+---Generates an entity card for the left-top inspector container
+---@param entity EntityHandle
+function Inspector:GenerateEntityCard(entity)
+    local c = self.EntityCardContainer
+    c:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown"))
+    c:AddText(string.format("Uuid: %s", entity.Uuid and entity.Uuid.EntityUuid or "None"))
+    if entity.GameObjectVisual then
+        RPrint(entity.GameObjectVisual.Icon)
+        local pattern = "(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)%-(.+)"
+        local uuid,textureID = string.match(entity.GameObjectVisual.Icon, pattern)
+        RPrint(uuid)
+        RPrint(textureID)
+        if textureID or uuid or entity.GameObjectVisual.Icon then
+            c:AddImage(textureID or uuid or entity.GameObjectVisual.Icon, {64, 64}):Tooltip():AddText("\t\t"..tostring(textureID or uuid or entity.GameObjectVisual.Icon))
+        end
+    end
+    if entity.GameObjectVisual then
+        c:AddText(string.format("RootTemplateId: %s", entity.GameObjectVisual and entity.GameObjectVisual.RootTemplateId or "None"))
+    end
+    local raceResource = entity.Race and Ext.StaticData.Get(entity.Race.Race, "Race") --[[@as ResourceRace]]
+    if raceResource then
+        c:AddText(string.format("Race: %s", raceResource.DisplayName:Get()))
+    end
+    -- TODO Maybe: Tag component, Transform, UserReservedFor, marker components
 end
 
 return Inspector

@@ -53,7 +53,6 @@ function ThemeManager:DelayedTheming()
         self.CurrentTheme = presetTheme or self.AvailableThemes[1]
         if Scribe and Scribe.AllWindows then
             for _, window in ipairs(Scribe.AllWindows) do
-                RPrint("Applying to..."..window.Label)
                 self:Apply(window)
             end
         end

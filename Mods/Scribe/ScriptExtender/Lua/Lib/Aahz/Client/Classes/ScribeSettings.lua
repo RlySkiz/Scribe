@@ -44,6 +44,66 @@ local function openCloseWatchWindow()
     end
 end
 
+---Just a hypers for fun as a lil treat
+---@param el ExtuiTreeParent
+local function hypers(el)
+    local layoutTable = el:AddTable("", 3)
+    layoutTable:AddColumn("L", "WidthStretch", 2)
+    layoutTable:AddColumn("M", "WidthStretch", 10)
+    layoutTable:AddColumn("R", "WidthStretch", 2)
+    local layoutRow = layoutTable:AddRow()
+    local leftCell = layoutRow:AddCell()
+    local middleCell = layoutRow:AddCell()
+    local rightCell = layoutRow:AddCell()
+    local catImg = middleCell:AddImage("hypers", {64,64})
+    middleCell:AddText("We makin' mods? LFG").SameLine = true
+    el:AddSeparator()
+    local function getUVsForFrame(index)
+        local iconsPerRow = 3
+        local iconSize = 96
+        local textureSize = 288
+    
+        local iconX = index % iconsPerRow
+        local iconY = math.floor(index / iconsPerRow)
+    
+        iconY = iconY % iconsPerRow -- safety wrap?
+    
+        local uStart = iconX * iconSize / textureSize
+        local vStart = iconY * iconSize / textureSize
+        local uEnd = (iconX + 1) * iconSize / textureSize
+        local vEnd = (iconY + 1) * iconSize / textureSize
+    
+        return uStart, vStart, uEnd, vEnd
+    end
+    local scheduler = RX.CooperativeScheduler.Create()
+    
+    local catAnimObservable = RX.Observable.FromCoroutine(function()
+        local i = 0
+        while true do
+            coroutine.yield(i)
+            if i >= 7 then
+                i = 0
+            else
+                i = i + 1
+            end
+        end
+    end, scheduler)
+    
+    catAnimObservable:Subscribe(function(i)
+            -- local txt = catText
+            if catImg ~= nil then
+                -- txt.Label = string.format("Frame: %s", i)
+                local currentU0,currentV0,currentU1,currentV1 = getUVsForFrame(i)
+                catImg.ImageData.UV0 = { currentU0, currentV0}
+                catImg.ImageData.UV1 = { currentU1, currentV1}
+            end
+        end)
+    
+    local fixedTime = 0 -- Ext.Timer to drive the scheduler's internal clock every 1/60 second (0.016)
+    -- Ext.Timer.WaitForRealtime(16, function() scheduler:update(.016) fixedTime = fixedTime+.016 end, 16)
+    Ext.Timer.WaitForRealtime(30, function() scheduler:Update(.03) fixedTime = fixedTime+.03 end, 30) -- slow down 1/40
+end
+
 function Scribe.GenerateSettingsWindow()
     -- FIXME Get NorbInspect ready, this should go in a main Scribe.lua somewhere...
     testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
@@ -57,6 +117,7 @@ function Scribe.GenerateSettingsWindow()
     Scribe.SettingsWindow.AlwaysAutoResize = LocalSettings:GetOr(true, Static.Settings.SettingsAutoResize)
 
     table.insert(Scribe.AllWindows, Scribe.SettingsWindow) -- FIXME
+    hypers(Scribe.SettingsWindow)
 
     local viewportMinConstraints = {250, 850}
     Scribe.SettingsWindow:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
