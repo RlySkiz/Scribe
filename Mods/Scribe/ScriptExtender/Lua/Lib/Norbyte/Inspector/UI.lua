@@ -58,14 +58,11 @@ function Inspector:Init(instanceId)
     -- Scribe.SettingsWindow = Scribe.GenerateSettingsWindow() -- FIXME
     if Ext.Debug.IsDeveloperMode() then
         -- Right align button :deadge:
-        local ltbl = windowMainMenu:AddTable("", 2)
-        ltbl:AddColumn("Spacing", "WidthStretch")
-        ltbl:AddColumn("", "WidthFixed", 75)
-        local r = ltbl:AddRow()
-        r:AddCell() -- empty
-        local resetButton = r:AddCell():AddButton(Ext.Loca.GetTranslatedString("hc491ab897f074d7b9d7b147ce12b92fa32g5", "Reset"))
-        resetButton:Tooltip():AddText("\t\t"..Ext.Loca.GetTranslatedString("hec0ec5eaf174476886e2b4487f7e4a50e5b5", "Performs an Ext.Debug.Reset() (like resetting in the console)"))
-        resetButton.OnClick = function() Ext.Debug.Reset() end
+        Imgui.CreateRightAlign(windowMainMenu, 75, function(c)
+            local resetButton = c:AddButton(Ext.Loca.GetTranslatedString("hc491ab897f074d7b9d7b147ce12b92fa32g5", "Reset"))
+            resetButton:Tooltip():AddText("\t\t"..Ext.Loca.GetTranslatedString("hec0ec5eaf174476886e2b4487f7e4a50e5b5", "Performs an Ext.Debug.Reset() (like resetting in the console)"))
+            resetButton.OnClick = function() Ext.Debug.Reset() end
+        end)
     end
 
     openCloseLogger.OnClick = function()
