@@ -55,7 +55,7 @@ local function hypers(el)
     local leftCell = layoutRow:AddCell()
     local middleCell = layoutRow:AddCell()
     local rightCell = layoutRow:AddCell()
-    local catImg = middleCell:AddImage("hypers", {64,64})
+    local hypersImg = middleCell:AddImage("hypers", {64,64})
     middleCell:AddText("We makin' mods? LFG").SameLine = true
     el:AddSeparator()
     local function getUVsForFrame(index)
@@ -77,7 +77,7 @@ local function hypers(el)
     end
     local scheduler = RX.CooperativeScheduler.Create()
     
-    local catAnimObservable = RX.Observable.FromCoroutine(function()
+    local animObservable = RX.Observable.FromCoroutine(function()
         local i = 0
         while true do
             coroutine.yield(i)
@@ -89,13 +89,13 @@ local function hypers(el)
         end
     end, scheduler)
     
-    catAnimObservable:Subscribe(function(i)
+    animObservable:Subscribe(function(i)
             -- local txt = catText
-            if catImg ~= nil then
+            if hypersImg ~= nil then
                 -- txt.Label = string.format("Frame: %s", i)
                 local currentU0,currentV0,currentU1,currentV1 = getUVsForFrame(i)
-                catImg.ImageData.UV0 = { currentU0, currentV0}
-                catImg.ImageData.UV1 = { currentU1, currentV1}
+                hypersImg.ImageData.UV0 = { currentU0, currentV0}
+                hypersImg.ImageData.UV1 = { currentU1, currentV1}
             end
         end)
     
