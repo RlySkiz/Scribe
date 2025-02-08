@@ -56,6 +56,16 @@ function Inspector:Init(instanceId)
     local settingsMenu = fileMenu:AddItem(Ext.Loca.GetTranslatedString("hca001b2e6e7a49e9b152735a3a799083281g", "Settings"))
     local openCloseLogger = fileMenu:AddItem(Ext.Loca.GetTranslatedString("h0a751a9f868d4b378b2e2616dca4672f4120", "Open/Close Logger"))
     -- Scribe.SettingsWindow = Scribe.GenerateSettingsWindow() -- FIXME
+    if Ext.Debug.IsDeveloperMode() then
+        -- Right align button :deadge:
+        local ltbl = windowMainMenu:AddTable("", 2)
+        ltbl:AddColumn("Spacing", "WidthStretch")
+        ltbl:AddColumn("", "WidthFixed", 75)
+        local r = ltbl:AddRow()
+        r:AddCell() -- empty
+        local resetButton = r:AddCell():AddButton(Ext.Loca.GetTranslatedString("hc491ab897f074d7b9d7b147ce12b92fa32g5", "Reset"))
+        resetButton.OnClick = function() Ext.Debug.Reset() end
+    end
 
     openCloseLogger.OnClick = function()
         if MainScribeLogger == nil then return end
