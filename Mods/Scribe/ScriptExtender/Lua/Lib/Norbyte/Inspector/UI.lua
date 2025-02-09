@@ -213,13 +213,9 @@ function Inspector:GenerateEntityCard(entity)
     c:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown"))
     c:AddText(string.format("Uuid: %s", entity.Uuid and entity.Uuid.EntityUuid or "None"))
     if entity.GameObjectVisual then
-        RPrint(entity.GameObjectVisual.Icon)
-        local pattern = "(%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x)%-(.+)"
-        local uuid,textureID = string.match(entity.GameObjectVisual.Icon, pattern)
-        RPrint(uuid)
-        RPrint(textureID)
-        if textureID or uuid or entity.GameObjectVisual.Icon then
-            c:AddImage(textureID or uuid or entity.GameObjectVisual.Icon, {64, 64}):Tooltip():AddText("\t\t"..tostring(textureID or uuid or entity.GameObjectVisual.Icon))
+        if entity.GameObjectVisual.Icon and not entity.ClientCharacter and not entity.ServerCharacter then
+            -- Sends a console warning if it can't find icon, and no portraits, boo.
+            c:AddImage(entity.GameObjectVisual.Icon, {64, 64}):Tooltip():AddText("\t\t"..tostring(entity.GameObjectVisual.Icon))
         end
     end
     if entity.GameObjectVisual then

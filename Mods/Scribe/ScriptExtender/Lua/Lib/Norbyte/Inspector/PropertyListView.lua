@@ -1,6 +1,7 @@
 local H = Ext.Require("Lib/Norbyte/Helpers.lua")
 local GetPropertyMeta = H.GetPropertyMeta
 local GetEntityName = H.GetEntityName
+local IsEntity = H.IsEntity
 
 local PropertyEditorFactory = require("Lib.Norbyte.Inspector.PropertyEditor")
 
@@ -99,7 +100,7 @@ function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
             displayType = valType
         end
     end
-    popup:AddSeparatorText(GetEntityName(propertyPath.Root) or "Unknown")
+    popup:AddSeparatorText(IsEntity(propertyPath.Root) and GetEntityName(propertyPath.Root) or "Unknown")
     popup:AddText(("Type: "..displayType))
     local watchButton = popup:AddButton("Watch: "..propName)
     watchButton.OnClick = function()

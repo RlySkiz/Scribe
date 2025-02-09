@@ -5,13 +5,36 @@ function TextEditor:Supports(type)
     return type.Kind == "String"
 end
 
+---@param holder ExtuiTreeParent
 function TextEditor:Create(holder, path, key, value, type, setter)
+    local popup = holder:AddPopup("")
+    local infoButton = holder:AddButton("!")
+    if type.TypeName == "Guid" and value ~= NULLUUID then
+        infoButton.Visible = true
+        popup.AlwaysAutoResize = true
+        popup.UserData = {
+            PopupButton = infoButton,
+        }
+        self:GenerateGuidPopup(popup, value)
+        infoButton.OnClick = function()
+            if popup.UserData.ListView then
+                popup.UserData.ListView:Refresh()
+            end
+
+            popup:Open()
+        end
+    else
+        infoButton.Visible = false
+    end
     local cb = holder:AddInputText("", value) --[[@as ExtuiInputText]]
+    cb.SizeHint = {Imgui.ScaleFactor()*380, Imgui.ScaleFactor()*32}
+    cb.SameLine = infoButton.Visible == true
     cb.ItemWidth = -5
     -- RPrint(string.format("%s,\n%s,\n%s,\n%s,\n%s,\n%s", holder, path, key, value, type, setter))
     cb.UserData = {
         IsUuid = type.TypeName == "Guid",
         TypeName = type.TypeName,
+        Popup = popup,
     }
     if Helpers.Format.IsValidUUID(value) then
         -- treat it as a UUID field too
@@ -29,6 +52,14 @@ function TextEditor:Create(holder, path, key, value, type, setter)
                 -- new value must also be a valid uuid
                 c:SetColor("Text", Imgui.Colors.MediumSeaGreen)
                 setter(newText)
+
+                -- Check Guid Popup stuff if new guid is known
+                if GuidLookup:Lookup(newText) then
+                    self:GenerateGuidPopup(c.UserData.Popup, newText, true)
+                    infoButton.Visible = true
+                else
+                    infoButton.Visible = false
+                end
             end
         else
             -- RPrint(string.format("Didn't change a UUID for %s (%s)", key, c.UserData.TypeName))
@@ -36,6 +67,26 @@ function TextEditor:Create(holder, path, key, value, type, setter)
         end
     end
     return cb
+end
+
+---@param popup ExtuiPopup
+---@param guid Guid
+---@param refresh boolean?
+function TextEditor:GenerateGuidPopup(popup, guid, refresh)
+    if refresh then
+        -- TODO guid has changed since this popup was generated
+        Imgui.ClearChildren(popup)
+    end
+
+    local lookupResource = GuidLookup:Lookup(guid)
+    if lookupResource then
+        Imgui.SetChunkySeparator(popup:AddSeparatorText(Ext.Types.GetObjectType(lookupResource)))
+        Imgui.CreateMiddleAlign(popup, 300, function(c) c:AddText(guid) end)
+        popup:AddSeparator()
+        local listView = PropertyListView:New(LocalPropertyInterface, popup)
+        listView:SetTarget(ObjectPath:New(lookupResource))
+        popup.UserData.ListView = listView
+    end
 end
 
 return TextEditor
