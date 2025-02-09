@@ -8,17 +8,20 @@ end
 ---@param holder ExtuiTreeParent
 function TextEditor:Create(holder, path, key, value, type, setter)
     local popup = holder:AddPopup("")
+    popup.IDContext = string.format("%s_%s_%s", holder.IDContext, key, value)
     local infoButton = holder:AddButton("!")
+    infoButton.IDContext = string.format("%s_%s_%sButton", holder.IDContext, key, value)
+    local listView
     if type.TypeName == "Guid" and value ~= NULLUUID then
         infoButton.Visible = true
         popup.AlwaysAutoResize = true
         popup.UserData = {
             PopupButton = infoButton,
         }
-        self:GenerateGuidPopup(popup, value)
+        listView = self:GenerateGuidPopup(popup, value)
         infoButton.OnClick = function()
-            if popup.UserData.ListView then
-                popup.UserData.ListView:Refresh()
+            if listView then
+                listView:Refresh()
             end
 
             popup:Open()
@@ -34,7 +37,6 @@ function TextEditor:Create(holder, path, key, value, type, setter)
     cb.UserData = {
         IsUuid = type.TypeName == "Guid",
         TypeName = type.TypeName,
-        Popup = popup,
     }
     if Helpers.Format.IsValidUUID(value) then
         -- treat it as a UUID field too
@@ -55,7 +57,7 @@ function TextEditor:Create(holder, path, key, value, type, setter)
 
                 -- Check Guid Popup stuff if new guid is known
                 if GuidLookup:Lookup(newText) then
-                    self:GenerateGuidPopup(c.UserData.Popup, newText, true)
+                    listView = self:GenerateGuidPopup(popup, newText, true)
                     infoButton.Visible = true
                 else
                     infoButton.Visible = false
@@ -85,7 +87,7 @@ function TextEditor:GenerateGuidPopup(popup, guid, refresh)
         popup:AddSeparator()
         local listView = PropertyListView:New(LocalPropertyInterface, popup)
         listView:SetTarget(ObjectPath:New(lookupResource))
-        popup.UserData.ListView = listView
+        return listView
     end
 end
 

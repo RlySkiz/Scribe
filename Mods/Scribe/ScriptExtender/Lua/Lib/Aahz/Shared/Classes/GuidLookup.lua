@@ -28,7 +28,7 @@ end
 local function loadLater()
     ---@param rmt GuidResourceType
     for _,rmt in ipairs(Ext.Enums.ExtResourceManagerType) do
-        if rmt == "Max" or rmt == "Sentinel" then break end
+        if rmt == "Max" then break end
         for _,guid in ipairs(Ext.StaticData.GetAll(rmt)) do
             if guid ~= NULLUUID then
                 GuidLookup.LookupMap[guid] = {
@@ -39,7 +39,7 @@ local function loadLater()
         end
     end
     for _,rbt in ipairs(Ext.Enums.ResourceBankType) do
-        if rbt == "Max" or rbt == "Sentinel" then break end
+        if rbt == "Sentinel" then break end
         for _,guid in ipairs(Ext.Resource.GetAll(rbt)) do
             if guid ~= NULLUUID then
                 GuidLookup.LookupMap[guid] = {
