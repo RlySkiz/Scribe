@@ -5,13 +5,28 @@ local CanExpandValue = H.CanExpandValue
 --- @class LocalPropertyInterface
 local LocalPropertyInterface = {}
 
-function LocalPropertyInterface:FetchSetChildren(obj, handler, typeInfo)
+local function isRecursionDetected(currentPath, parentPath)
+    local currentObj = currentPath:Resolve()
+    while parentPath do
+        local parentObj = parentPath:Resolve()
+        if parentObj == currentObj then
+            return true
+        end
+        parentPath = parentPath.Parent
+    end
+    return false
+end
+
+function LocalPropertyInterface:FetchSetChildren(obj, handler, typeInfo, parentPath)
     local props = {}
     local nodes = {}
 
     for key=1,#obj do
         local val = Ext.Types.GetHashSetValueAt(obj, key)
-        if IsNodeTypeProperty(val) then
+        local currentPath = parentPath:CreateChild(key)
+        if isRecursionDetected(currentPath, parentPath) then
+            table.insert(nodes, {Key=key .. " **RECURSION**", CanExpand=false})
+        elseif IsNodeTypeProperty(val) then
             table.insert(nodes, {Key=key, CanExpand=CanExpandValue(val)})
         else
             table.insert(props, {Key=key, Value=val})
@@ -21,7 +36,7 @@ function LocalPropertyInterface:FetchSetChildren(obj, handler, typeInfo)
     handler(nodes, props, typeInfo)
 end
 
-function LocalPropertyInterface:FetchChildrenInternal(obj, handler, typeInfo)
+function LocalPropertyInterface:FetchChildrenInternal(obj, handler, typeInfo, parentPath)
     local props = {}
     local nodes = {}
 
@@ -33,7 +48,10 @@ function LocalPropertyInterface:FetchChildrenInternal(obj, handler, typeInfo)
     table.sort(keys)
     for _,key in ipairs(keys) do
         local val = obj[key]
-        if IsNodeTypeProperty(val) then
+        local currentPath = parentPath:CreateChild(key)
+        if isRecursionDetected(currentPath, parentPath) then
+            table.insert(nodes, {Key=key .. " **RECURSION**", CanExpand=false})
+        elseif IsNodeTypeProperty(val) then
             table.insert(nodes, {Key=key, CanExpand=CanExpandValue(val)})
         else
             table.insert(props, {Key=key, Value=val})
@@ -58,9 +76,9 @@ function LocalPropertyInterface:FetchChildren(path, handler)
         end
 
         if typeInfo ~= nil and typeInfo.Kind == "Set" then
-            return self:FetchSetChildren(attrs, handler, typeInfo)
+            return self:FetchSetChildren(attrs, handler, typeInfo, path)
         else
-            return self:FetchChildrenInternal(attrs, handler, typeInfo)
+            return self:FetchChildrenInternal(attrs, handler, typeInfo, path)
         end
     end
 

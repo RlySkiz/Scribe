@@ -144,7 +144,9 @@ function Inspector:AddExpandedChild(node, name, canExpand)
     local child = node:AddTree(tostring(name))
     child.UserData = { Path = node.UserData.Path:CreateChild(name) }
 
-    child.OnExpand = function (e) self:ExpandNode(e) end
+    if not string.find(tostring(name), "**RECURSION**") then
+        child.OnExpand = function (e) self:ExpandNode(e) end
+    end
     child.OnClick = function (e) self:ViewNodeProperties(e) end
 
     child.Leaf = not canExpand
@@ -210,8 +212,12 @@ end
 ---@param entity EntityHandle
 function Inspector:GenerateEntityCard(entity)
     local c = self.EntityCardContainer
+    c:AddSeparatorText("Entity Info:")
     c:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown"))
-    c:AddText(string.format("Uuid: %s", entity.Uuid and entity.Uuid.EntityUuid or "None"))
+    c:AddText("Uuid:")
+    local uuidText = c:AddInputText("", entity.Uuid and entity.Uuid.EntityUuid or "None")
+    uuidText.SameLine = true
+    uuidText.ReadOnly = true
     if entity.GameObjectVisual then
         if entity.GameObjectVisual.Icon and not entity.ClientCharacter and not entity.ServerCharacter then
             -- Sends a console warning if it can't find icon, and no portraits, boo.
@@ -219,13 +225,17 @@ function Inspector:GenerateEntityCard(entity)
         end
     end
     if entity.GameObjectVisual then
-        c:AddText(string.format("RootTemplateId: %s", entity.GameObjectVisual and entity.GameObjectVisual.RootTemplateId or "None"))
+        c:AddText("RootTemplateId:")
+        local templateUuidText = c:AddInputText("", entity.GameObjectVisual and entity.GameObjectVisual.RootTemplateId or "None")
+        templateUuidText.SameLine = true
+        templateUuidText.ReadOnly = true
     end
     local raceResource = entity.Race and Ext.StaticData.Get(entity.Race.Race, "Race") --[[@as ResourceRace]]
     if raceResource then
         c:AddText(string.format("Race: %s", raceResource.DisplayName:Get()))
     end
     -- TODO Maybe: Tag component, Transform, UserReservedFor, marker components
+    c:AddSeparatorText("Entity Hierarchy:")
 end
 
 return Inspector

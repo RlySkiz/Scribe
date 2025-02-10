@@ -118,10 +118,11 @@ end
 --- @class ObjectPath
 --- @field Root EntityHandle|string
 --- @field Path any[]
+--- @field Parent ObjectPath|nil
 ObjectPath = {}
 
 ---@return ObjectPath
-function ObjectPath:New(root, path)
+function ObjectPath:New(root, path, parent)
     local pathClone = {}
     for i,key in ipairs(path or {}) do
         table.insert(pathClone, key)
@@ -129,7 +130,8 @@ function ObjectPath:New(root, path)
 
 	local o = {
 		Root = root,
-        Path = pathClone
+        Path = pathClone,
+        Parent = parent
 	}
 	setmetatable(o, self)
     self.__index = self
@@ -139,11 +141,12 @@ end
 function ObjectPath:Resolve()
     local obj = self.Root
     for _,name in ipairs(self.Path) do
+        local actualName = string.gsub(tostring(name), " %*%*RECURSION%*%*", "")
         -- Jank workaround for accessing elements in a set
         if type(obj) == "userdata" and Ext.Types.GetValueType(obj) == "Set" then
-            obj = Ext.Types.GetHashSetValueAt(obj, name)
+            obj = Ext.Types.GetHashSetValueAt(obj, actualName)
         else
-            obj = obj[name]
+            obj = obj[actualName]
         end
 
         if obj == nil then return nil end
@@ -166,14 +169,28 @@ function ObjectPath:__tostring()
 end
 
 function ObjectPath:Clone()
-    return ObjectPath:New(self.Root, self.Path)
+    return ObjectPath:New(self.Root, self.Path, self.Parent)
 end
-
 
 function ObjectPath:CreateChild(child)
     local path = self:Clone()
     table.insert(path.Path, child)
+    path.Parent = self
     return path
+end
+
+function ObjectPath:Contains(otherPath)
+    if #self.Path < #otherPath.Path then
+        return false
+    end
+
+    for i = 1, #self.Path do
+        if self.Path[i] ~= otherPath.Path[i] then
+            return false
+        end
+    end
+
+    return true
 end
 
 return _G
