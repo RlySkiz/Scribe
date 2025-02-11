@@ -44,11 +44,10 @@ end
 
 
 function Inspector:Init(instanceId)
-    self.Window = Ext.IMGUI.NewWindow("Object Inspector")
-    self.Window.IDContext = instanceId
-    self.Window:SetSize({500, 500}, "FirstUseEver")
-    self.Window.Closeable = true
-    table.insert(Scribe.AllWindows, self.Window)
+    self.Window = Imgui.CreateCommonWindow("Object Inspector", {
+        IDContext = instanceId,
+    })
+    -- self.Window:SetSize({500, 500}, "FirstUseEver")
 
     -- Menu stuff
     local windowMainMenu = self.Window:AddMainMenu()

@@ -28,12 +28,14 @@
 --- @field Window ExtuiChildWindow
 --- @field MainMenu ExtuiMenu
 --- @field MenuFile ExtuiMenu
---- @field StartButton ExtuiButton
+--- @field StartStopButton ExtuiButton
 --- @field StopButton ExtuiButton
 --- @field ClearButton ExtuiButton
 --- @field FrameCounter ExtuiText
 --- @field EventCounter ExtuiText
 --- @field PrintToConsoleCheckbox ExtuiCheckbox
+--- @field WatchComponentWindow ExtuiWindow
+--- @field WatchDualPane ImguiDualPane
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
     FrameNo = 1,
@@ -73,18 +75,16 @@ function ImguiECSLogger:CreateTab(tab)
     self.ContainerTab = tab
     self.Window = self.ContainerTab:AddChildWindow("Scribe_ECSLogger")
     self.Window.IDContext = "Scribe_ECSLogger"
-    self.Window.Size = {610,625}
+    self.Window.Size = {-1,-1}
     self.Window:SetStyle("FrameRounding", 5) -- soft square
     self:InitializeLayout()
 end
 
 function ImguiECSLogger:InitializeLayout()
     if self.Ready then return end -- only initialize once
-    local start = self.Window:AddButton("Start")
-    local stop = self.Window:AddButton("Stop")
+    local startstop = self.Window:AddButton("Start/Stop")
     local clear = self.Window:AddButton("Clear")
     local frameCounter = self.Window:AddText("Frame: 0")
-    stop.SameLine = true
     clear.SameLine = true
     frameCounter.SameLine = true
     frameCounter:SetColor("Text", Imgui.Colors.Tan)
@@ -109,13 +109,10 @@ function ImguiECSLogger:InitializeLayout()
         self.PrintChangesToConsole = c.Checked
     end
 
+    self:CreateComponentWatchWindow()
+
     local childWin = self.Window:AddChildWindow("Scribe_ECSLoggerChildWin")
-    -- childWin.AutoResizeY = true
-    -- childWin.AutoResizeX = true
-    -- childWin.ResizeY = true
-    -- childWin.AlwaysVerticalScrollbar = true
-    -- childWin.AlwaysUseWindowPadding = true
-    childWin.Size = {600, 560}
+    childWin.Size = {-1, -1}
 
     local logTable = childWin:AddTable("Scribe_ECSLoggerTable", 3)
     self.LogTable = logTable
@@ -150,20 +147,19 @@ function ImguiECSLogger:InitializeLayout()
     logTable.HighlightHoveredColumn = true
     logTable.BordersInner = true
     self.LogChildWindow = childWin
-    self.StartButton = start
-    self.StopButton = stop
+    self.StartStopButton = startstop
     self.ClearButton = clear
     self.FrameCounter = frameCounter
     self.EventCounter = eventCounter
     self.Ready = true
 
     -- mockup
-    start.OnClick = function(b)
-        self:RebuildLog()
-        self:StartTracing()
-    end
-    stop.OnClick = function(b)
-        self:StopTracing()
+    startstop.OnClick = function(b)
+        if not self.TickHandler then
+            -- not tracing, intent is to start logging again, so rebuild/clear log
+            self:RebuildLog()
+        end
+        self:StartStopTracing()
     end
     clear.OnClick = function(b)
         self.FrameNo = 0
@@ -173,9 +169,42 @@ function ImguiECSLogger:InitializeLayout()
     end
 end
 
+function ImguiECSLogger:CreateComponentWatchWindow()
+    local watchedComponentsGroup = self.Window:AddGroup("WatchedComponentsGroup") -- TODO decide where this really goes in layout
+    local watchedComponentsButton = watchedComponentsGroup:AddButton("Watched Components")
+
+    local win = Imgui.CreateCommonWindow("ECS Logger - Watched Components", {
+        IDContext = "WatchCompWin",
+    })
+
+    -- contents
+    win:AddSeparatorText("Components to Watch")
+    ---@type ImguiDualPane
+    local dualPane = ImguiDualPane:New{
+        TreeParent = win,
+    }
+    self.WatchComponentWindow = win
+    self.WatchDualPane = dualPane
+    watchedComponentsButton.OnClick = function() win.Open = not win.Open end
+end
+function ImguiECSLogger:StartStopTracing()
+    if self.TickHandler then
+        -- Currently tracing
+        Ext.Entity.EnableTracing(false)
+        Ext.Entity.ClearTrace()
+        Ext.Events.Tick:Unsubscribe(self.TickHandler)
+        self.TickHandler = nil
+    else
+        -- Not tracing
+        Ext.Entity.EnableTracing(true)
+        self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+    end
+end
 function ImguiECSLogger:StartTracing()
-    Ext.Entity.EnableTracing(true)
-    self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+    if not self.TickHandler then
+        Ext.Entity.EnableTracing(true)
+        self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+    end
 end
 
 function ImguiECSLogger:StopTracing()
@@ -248,6 +277,7 @@ function ImguiECSLogger:OnTick()
                         newSub = "! "
                     end
                     newEntry:AddSubEntry(newsub..tostring(component.Name))
+                    self.WatchDualPane:AddOption(component.Name)
                 end
             end
             self:AddLogEntry(newEntry)

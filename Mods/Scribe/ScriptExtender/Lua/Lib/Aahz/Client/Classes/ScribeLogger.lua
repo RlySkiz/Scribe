@@ -16,21 +16,16 @@ function ScribeLogger:Init()
 end
 function ScribeLogger:CreateWindow()
     if self.Window ~= nil then return end -- only create once
-    self.Window = Ext.IMGUI.NewWindow("Scribe Log")
-    self.Window.IDContext = "Scribe_Log"
-    self.Window:SetSize({600,550}, "FirstUseEver")
-    self.Window.Open = false
-    self.Window.Closeable = true
-    self.Window.AlwaysAutoResize = true
-    
-    table.insert(Scribe.AllWindows, self.Window)
-
-    local viewportMinConstraints = {500, 500}
-    self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
-    local viewportMaxConstraints = Ext.IMGUI.GetViewportSize()
-    viewportMaxConstraints[1] = math.floor(viewportMaxConstraints[1] / 2) -- 1/3 of width, max?
-    viewportMaxConstraints[2] = math.floor(viewportMaxConstraints[2] *0.85) -- 9/10 of height, max?
-    self.Window:SetSizeConstraints(viewportMinConstraints,viewportMaxConstraints)
+    self.Window = Imgui.CreateCommonWindow("Scribe Log", {
+        IDContext = "Scribe_Log",
+        -- defaults
+        -- Size = {600, 550},
+        -- MinSize = {500, 500},
+        -- MaxSizePercentage = { 0.5, 0.85}
+        -- Open = false,
+        -- Closeable = true,
+        -- AlwaysAutoResize = true
+    })
 
     self.Window.OnClose = function(w)
         if w and w.UserData and w.UserData.Closed then

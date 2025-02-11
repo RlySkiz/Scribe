@@ -51,16 +51,10 @@ local function doHeaderRow(tbl)
 end
 
 function WatchWindow:Init()
-    self.Window = Ext.IMGUI.NewWindow("Watch Window")
-    self.Window:SetSize({600, 400}, "FirstUseEver")
-    self.Window.Open = false
-    self.Window.Closeable = true
-
-    table.insert(Scribe.AllWindows, self.Window)
-
-    local viewportMinConstraints = {400, 200}
-    self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
-    -- self.Window.AlwaysAutoResize = true
+    self.Window = Imgui.CreateCommonWindow("Watch Window", {
+        Size = {600, 400},
+        MinSize = {400, 200},
+    })
     local testButton = self.Window:AddButton("Test Refresh")
     local layoutTable = self.Window:AddTable("", 1)
     local watchCell = layoutTable:AddRow():AddCell()

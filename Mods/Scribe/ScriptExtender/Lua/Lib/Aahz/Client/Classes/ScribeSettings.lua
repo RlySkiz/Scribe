@@ -110,21 +110,12 @@ function Scribe.GenerateSettingsWindow()
     testInspector:MakeGlobal()
     testInspector.Window.Open = false
 
-    Scribe.SettingsWindow = Ext.IMGUI.NewWindow(Ext.Loca.GetTranslatedString("hb23f384926b64c349bd61fd84f23c88c3d4d", "Scribe Settings"))
-    Scribe.SettingsWindow.Open = false
-    Scribe.SettingsWindow.Closeable = true
-    -- settingsWindow.AlwaysAutoResize = true -- TODO need saved settings
-    Scribe.SettingsWindow.AlwaysAutoResize = LocalSettings:GetOr(true, Static.Settings.SettingsAutoResize)
-
-    table.insert(Scribe.AllWindows, Scribe.SettingsWindow) -- FIXME
+    Scribe.SettingsWindow = Imgui.CreateCommonWindow(Ext.Loca.GetTranslatedString("hb23f384926b64c349bd61fd84f23c88c3d4d", "Scribe Settings"), {
+        AlwaysAutoResize = LocalSettings:GetOr(true, Static.Settings.SettingsAutoResize),
+        MinSize = {250, 850},
+        MaxSizePercentage = { 0.333333, 0.85},
+    })
     hypers(Scribe.SettingsWindow)
-
-    local viewportMinConstraints = {250, 850}
-    Scribe.SettingsWindow:SetStyle("WindowMinSize", viewportMinConstraints[1], viewportMinConstraints[2])
-    local viewportMaxConstraints = Ext.IMGUI.GetViewportSize()
-    viewportMaxConstraints[1] = math.floor(viewportMaxConstraints[1] / 3) -- 1/3 of width, max?
-    viewportMaxConstraints[2] = math.floor(viewportMaxConstraints[2] *0.9) -- 9/10 of height, max?
-    Scribe.SettingsWindow:SetSizeConstraints(viewportMinConstraints,viewportMaxConstraints)
 
     local keybindingsGroup = Scribe.SettingsWindow:AddGroup("KeybindingsGroup")
     keybindingsGroup:AddText(Ext.Loca.GetTranslatedString("h9727f426570b4fe39ae10934eb6510996b0d", "Open/Close Scribe"))

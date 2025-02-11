@@ -45,7 +45,7 @@ function ImguiDualPane:Init()
                 -- Add to visual imgui
                 self:_AddAvailableOption(change.Value)
             else
-                SWarn("Attempted to add option that already exists: %s", change.Value)
+                -- SWarn("Attempted to add option that already exists: %s", change.Value)
             end
         end
         if change.ChangeType == DualPaneChangeType.RemoveOption then
@@ -147,9 +147,9 @@ function ImguiDualPane:InitializeLayout()
 
     -- Quick headers in a table with set widths to match child windows
     local labelTable = container:AddTable(id.."_DualPane_Labels", 3)
-    labelTable:AddColumn("Available (0)","WidthFixed", 200)
-    labelTable:AddColumn("", "WidthFixed", 30)
-    labelTable:AddColumn("Selected", "WidthFixed", 200)
+    labelTable:AddColumn("Available (0)","WidthStretch", 200)
+    labelTable:AddColumn("", "WidthStretch", 30)
+    labelTable:AddColumn("Selected", "WidthStretch", 200)
     labelTable.ShowHeader = true
     labelTable.ColumnDefs[2].NoSort = true
     self._headerTable = labelTable
@@ -172,14 +172,17 @@ function ImguiDualPane:InitializeLayout()
     end -- no sorting
 
     -- Create each pane, including a middle child window for buttons
-    local leftPane = container:AddChildWindow(id.."_DualPane_Left")
-    local middleButtonPanel = container:AddChildWindow(id.."_DualPane_Middle")
-    local rightPane = container:AddChildWindow(id.."_DualPane_Right")
-    leftPane.Size = {200, 450}
-    middleButtonPanel.Size = {30, 450}
-    middleButtonPanel.SameLine = true
-    rightPane.Size = {200, 450}
-    rightPane.SameLine = true
+    local layoutTable = container:AddTable(id.."_DualPane_Layout", 3)
+    layoutTable:AddColumn("Available", "WidthStretch", 200)
+    layoutTable:AddColumn("", "WidthStretch", 30)
+    layoutTable:AddColumn("Selected", "WidthStretch", 200)
+    local r = layoutTable:AddRow()
+    local c1 = r:AddCell()
+    local c2 = r:AddCell()
+    local c3 = r:AddCell()
+    local leftPane = c1:AddChildWindow(id.."_DualPane_Left")
+    local middleButtonPanel = c2:AddChildWindow(id.."_DualPane_Middle")
+    local rightPane = c3:AddChildWindow(id.."_DualPane_Right")
 
     -- Set Drag/Drop stuff for panes
     leftPane.DragDropType = id.."_Available"
