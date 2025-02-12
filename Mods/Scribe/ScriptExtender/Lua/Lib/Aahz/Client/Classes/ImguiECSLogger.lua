@@ -188,7 +188,9 @@ function ImguiECSLogger:CreateScribeThrobber()
     Imgui.CreateAnimation(win, "scribed", {32,32}, 96, 2, 192, 1, 60)
     Ext.Events.Tick:Subscribe(function()
         local picker = Ext.UI.GetPickingHelper(1)
-        win:SetPos({offset[1]+picker.WindowCursorPos[1], offset[2]+picker.WindowCursorPos[2]})
+        if picker then
+            win:SetPos({offset[1]+picker.WindowCursorPos[1], offset[2]+picker.WindowCursorPos[2]})
+        end
     end)
     self.ThrobberWin = win
 end
