@@ -48,7 +48,7 @@ function ImguiServerEventLogger:CreateTab(tab)
     self.ContainerTab = tab
     self.Window = self.ContainerTab:AddChildWindow("Scribe_ServerEventLogger")
     self.Window.IDContext = "Scribe_ServerEventLogger"
-    self.Window.Size = {610,625}
+    self.Window.Size = {-1, -1}
     self:InitializeLayout()
     self:RebuildLog()
 end
@@ -63,7 +63,7 @@ function ImguiServerEventLogger:InitializeLayout()
     -- childWin.ResizeY = true -- fucks with scroll
     -- childWin.AlwaysVerticalScrollbar = true
     -- childWin.AlwaysUseWindowPadding = true
-    childWin.Size = {600, 560}
+    childWin.Size = {-1, -1}
 
     local logTable = childWin:AddTable("Scribe_ServerEventLoggerTable", 3)
     -- logTable.Size = {438, 360}

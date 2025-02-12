@@ -36,6 +36,7 @@
 --- @field PrintToConsoleCheckbox ExtuiCheckbox
 --- @field WatchComponentWindow ExtuiWindow
 --- @field WatchDualPane ImguiDualPane
+--- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
     FrameNo = 1,
@@ -78,6 +79,7 @@ function ImguiECSLogger:CreateTab(tab)
     self.Window.Size = {-1,-1}
     self.Window:SetStyle("FrameRounding", 5) -- soft square
     self:InitializeLayout()
+    self:CreateScribeThrobber()
 end
 
 function ImguiECSLogger:InitializeLayout()
@@ -168,6 +170,28 @@ function ImguiECSLogger:InitializeLayout()
         self:RebuildLog()
     end
 end
+function ImguiECSLogger:CreateScribeThrobber()
+    local viewport = Ext.IMGUI.GetViewportSize()
+    local win = Ext.IMGUI.NewWindow("ScribeThrobber")
+    local offset = {20, 20}
+    win.NoTitleBar = true
+
+    win.NoResize = true
+    win:SetSize({32,32}, "Always")
+    -- win.NoMove = true
+    win:SetStyle("WindowPadding", 0)
+    win:SetColor("WindowBg", {0,0,0,0})
+    win:SetColor("Border", {0,0,0,0})
+    win.Visible = false
+    win.Closeable = false
+
+    Imgui.CreateAnimation(win, "scribed", {32,32}, 96, 2, 192, 1, 60)
+    Ext.Events.Tick:Subscribe(function()
+        local picker = Ext.UI.GetPickingHelper(1)
+        win:SetPos({offset[1]+picker.WindowCursorPos[1], offset[2]+picker.WindowCursorPos[2]})
+    end)
+    self.ThrobberWin = win
+end
 
 function ImguiECSLogger:CreateComponentWatchWindow()
     local watchedComponentsGroup = self.Window:AddGroup("WatchedComponentsGroup") -- TODO decide where this really goes in layout
@@ -189,15 +213,17 @@ function ImguiECSLogger:CreateComponentWatchWindow()
 end
 function ImguiECSLogger:StartStopTracing()
     if self.TickHandler then
-        -- Currently tracing
+        -- Currently tracing, turn off
         Ext.Entity.EnableTracing(false)
         Ext.Entity.ClearTrace()
         Ext.Events.Tick:Unsubscribe(self.TickHandler)
         self.TickHandler = nil
+        self.ThrobberWin.Visible = false
     else
-        -- Not tracing
+        -- Not currently tracing, turn on
         Ext.Entity.EnableTracing(true)
         self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+        self.ThrobberWin.Visible = true
     end
 end
 function ImguiECSLogger:StartTracing()

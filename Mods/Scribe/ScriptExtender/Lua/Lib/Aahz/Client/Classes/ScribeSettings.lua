@@ -55,53 +55,10 @@ local function hypers(el)
     local leftCell = layoutRow:AddCell()
     local middleCell = layoutRow:AddCell()
     local rightCell = layoutRow:AddCell()
-    local hypersImg = middleCell:AddImage("hypers", {64,64})
+    local hypersImg = Imgui.CreateAnimation(middleCell, "hypers", {64,64}, 96, 3, 288, 7)
+
     middleCell:AddText("We makin' mods? LFG").SameLine = true
     el:AddSeparator()
-    local function getUVsForFrame(index)
-        local iconsPerRow = 3
-        local iconSize = 96
-        local textureSize = 288
-    
-        local iconX = index % iconsPerRow
-        local iconY = math.floor(index / iconsPerRow)
-    
-        iconY = iconY % iconsPerRow -- safety wrap?
-    
-        local uStart = iconX * iconSize / textureSize
-        local vStart = iconY * iconSize / textureSize
-        local uEnd = (iconX + 1) * iconSize / textureSize
-        local vEnd = (iconY + 1) * iconSize / textureSize
-    
-        return uStart, vStart, uEnd, vEnd
-    end
-    local scheduler = RX.CooperativeScheduler.Create()
-    
-    local animObservable = RX.Observable.FromCoroutine(function()
-        local i = 0
-        while true do
-            coroutine.yield(i)
-            if i >= 7 then
-                i = 0
-            else
-                i = i + 1
-            end
-        end
-    end, scheduler)
-    
-    animObservable:Subscribe(function(i)
-            -- local txt = catText
-            if hypersImg ~= nil then
-                -- txt.Label = string.format("Frame: %s", i)
-                local currentU0,currentV0,currentU1,currentV1 = getUVsForFrame(i)
-                hypersImg.ImageData.UV0 = { currentU0, currentV0}
-                hypersImg.ImageData.UV1 = { currentU1, currentV1}
-            end
-        end)
-    
-    local fixedTime = 0 -- Ext.Timer to drive the scheduler's internal clock every 1/60 second (0.016)
-    -- Ext.Timer.WaitForRealtime(16, function() scheduler:update(.016) fixedTime = fixedTime+.016 end, 16)
-    Ext.Timer.WaitForRealtime(30, function() scheduler:Update(.03) fixedTime = fixedTime+.03 end, 30) -- slow down 1/40
 end
 
 function Scribe.GenerateSettingsWindow()
