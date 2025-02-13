@@ -174,7 +174,7 @@ function ImguiDualPane:InitializeLayout()
     -- Create each pane, including a middle child window for buttons
     local layoutTable = container:AddTable(id.."_DualPane_Layout", 3)
     layoutTable:AddColumn("Available", "WidthStretch", 200)
-    layoutTable:AddColumn("", "WidthStretch", 30)
+    layoutTable:AddColumn("", "WidthFixed", 32)
     layoutTable:AddColumn("Selected", "WidthStretch", 200)
     local r = layoutTable:AddRow()
     local c1 = r:AddCell()
@@ -182,6 +182,9 @@ function ImguiDualPane:InitializeLayout()
     local c3 = r:AddCell()
     local leftPane = c1:AddChildWindow(id.."_DualPane_Left")
     local middleButtonPanel = c2:AddChildWindow(id.."_DualPane_Middle")
+    middleButtonPanel:SetStyle("CellPadding", 0)
+    middleButtonPanel:SetStyle("WindowPadding", 0)
+    -- middleButtonPanel:SetStyle("FramePadding", 0)
     local rightPane = c3:AddChildWindow(id.."_DualPane_Right")
 
     -- Set Drag/Drop stuff for panes
@@ -224,8 +227,8 @@ function ImguiDualPane:InitializeLayout()
 
     -- Add buttons to middle panel
     local selectAllButton = middleButtonPanel:AddButton(">>")
-    local selectButton = middleButtonPanel:AddButton(">")
-    local deselectButton = middleButtonPanel:AddButton("<")
+    local selectButton = Imgui.CreateMiddleAlign(middleButtonPanel, 20, function(m) return m:AddButton(">") end)
+    local deselectButton = Imgui.CreateMiddleAlign(middleButtonPanel, 20, function(m) return m:AddButton("<") end)
     local deselectAllButton = middleButtonPanel:AddButton("<<")
 
     -- Handle individual buttons

@@ -32,7 +32,7 @@ end
 
 function PropertyListView:Init()
     self.MetaInfoContainer = self.Parent:AddGroup("Meta Info Container")
-    self.MetaInfoSeparator = self.MetaInfoContainer:AddSeparatorText("Meta Info")
+    -- self.MetaInfoSeparator = self.MetaInfoContainer:AddSeparatorText("Meta Info")
     self.MetaInfo = self.MetaInfoContainer:AddTable("Meta Info", 2)
     self.MetaInfo.PositionOffset = {5, 2}
     self.MetaInfo:AddColumn("Name", "WidthFixed", 125)
@@ -147,17 +147,7 @@ function PropertyListView:Refresh()
     if #self.Target.Path > 0 then
         local pathStr = tostring(self.Target):gsub(" %*%*RECURSION%*%*", "")
         if pathStr ~= "" then
-            local row = self.MetaInfo:AddRow()
-            row:AddCell():AddText("Dump To File:")
-            local savePathSelection = row:AddCell()
-            local savePathPrefix = savePathSelection:AddText("Scribe/")
-            local savePathText = savePathSelection:AddInputText("")
-            local savePathFileType = savePathSelection:AddText(".json")
-            local saveButton = savePathSelection:AddButton("Save")
-            savePathText.SameLine = true
-            savePathFileType.SameLine = true
-            saveButton.SameLine = true
-            
+            -- Determine good path name
             local placeholderPath
             if IsEntity(self.Target.Root) then
                 local entityName = GetEntityName(self.Target.Root)
@@ -171,28 +161,23 @@ function PropertyListView:Refresh()
             else
                 placeholderPath = "Resource"
             end
-            savePathText.Text = placeholderPath
 
-            local dumpPath = savePathPrefix.Label ..placeholderPath.. savePathFileType.Label
-            savePathText.OnChange = function()
-                dumpPath = savePathPrefix.Label .. savePathText.Text ..savePathFileType.Label
-            end
-
+            local row = self.MetaInfo:AddRow()
+            row:AddCell():AddText("Path")
+            local pathCell = row:AddCell()
+            local pathText = pathCell:AddInputText("", pathStr)
+            local saveButton = pathCell:AddButton("Dump")
+            Imgui.CreateSimpleTooltip(saveButton:Tooltip(), function(tt)
+                tt:AddText(string.format("Dump to /ScriptExtender/Scribe/_Dumps/[C]%s", placeholderPath))
+                tt:AddBulletText("Up to 10 files with the same name are allowed."):SetColor("Text", Imgui.Colors.DarkOrange)
+            end)
+            saveButton.SameLine = true
             saveButton.OnClick = function()
                 local obj = self.Target:Resolve()
                 if obj then
-                    if IsEntity(obj) then
-                        Ext.IO.SaveFile(dumpPath, Ext.DumpExport(obj:GetAllComponents(), true))
-                    else
-                        Ext.IO.SaveFile(dumpPath, Ext.DumpExport(obj, true))
-                    end
-                    _P("Dumped object to: "..dumpPath)
+                    Helpers.Dump(obj, placeholderPath)
                 end
             end
-            
-            row = self.MetaInfo:AddRow()
-            row:AddCell():AddText("Path")
-            local pathText = row:AddCell():AddInputText("", pathStr)
             pathText.ReadOnly = true
             self.MetaInfoContainer.Visible = true
         else

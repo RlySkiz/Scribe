@@ -212,9 +212,15 @@ end
 function Inspector:GenerateEntityCard(entity)
     local c = self.EntityCardContainer
     c:AddSeparatorText("Entity Info:")
-    c:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown"))
+    local dumpButton = c:AddButton("Dump")
+    c:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown")).SameLine = true
+    dumpButton.OnClick = function()
+        Helpers.Dump(entity)
+    end
+
     c:AddText("Uuid:")
     local uuidText = c:AddInputText("", entity.Uuid and entity.Uuid.EntityUuid or "None")
+    uuidText.SizeHint = {-1, 32}
     uuidText.SameLine = true
     uuidText.ReadOnly = true
     if entity.GameObjectVisual then
@@ -226,6 +232,7 @@ function Inspector:GenerateEntityCard(entity)
     if entity.GameObjectVisual then
         c:AddText("RootTemplateId:")
         local templateUuidText = c:AddInputText("", entity.GameObjectVisual and entity.GameObjectVisual.RootTemplateId or "None")
+        templateUuidText.SizeHint = {-1, 32}
         templateUuidText.SameLine = true
         templateUuidText.ReadOnly = true
     end
