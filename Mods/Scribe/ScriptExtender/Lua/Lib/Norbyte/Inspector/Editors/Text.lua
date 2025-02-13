@@ -21,9 +21,11 @@ function TextEditor:Create(holder, path, key, value, type, setter)
         listView = self:GenerateGuidPopup(popup, value)
         infoButton.OnClick = function()
             if listView then
-                listView:Refresh()
+                if not pcall(function() listView:Refresh() end) then
+                    -- lifetime error, regenerate and refresh
+                    listView = self:GenerateGuidPopup(popup, value, true)
+                end
             end
-
             popup:Open()
         end
     else
@@ -98,6 +100,7 @@ function TextEditor:GenerateGuidPopup(popup, guid, refresh)
         popup:AddSeparator()
         local listView = PropertyListView:New(LocalPropertyInterface, popup)
         listView:SetTarget(ObjectPath:New(lookupResource))
+        if refresh then listView:Refresh() end
         return listView
     end
 end
