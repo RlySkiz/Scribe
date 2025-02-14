@@ -8,3 +8,4 @@ Static.Settings = {
     DoubleClickTime = 450, -- monotonic ms 
     CurrentTheme = "CurrentTheme",
 }
+NULLUUID = "00000000-0000-0000-0000-000000000000"

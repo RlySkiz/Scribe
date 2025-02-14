@@ -27,11 +27,11 @@ local function openCloseScribeChanged()
     --     module.GivenWindow.UserData.OpenCloseItem.Shortcut = newShortcut
     -- end
 end
-local testInspector
+-- local testInspector
 local function launchNorbScribe()
-    if testInspector then
-        testInspector.Window.Open = not testInspector.Window.Open
-        testInspector.Window.Visible = testInspector.Window.Open
+    if Scribe and Scribe.Window then
+        Scribe.Window.Window.Open = not Scribe.Window.Window.Open
+        Scribe.Window.Window.Visible = Scribe.Window.Window.Open
     end
 end
 
@@ -62,11 +62,6 @@ local function hypers(el)
 end
 
 function Scribe.GenerateSettingsWindow()
-    -- FIXME Get NorbInspect ready, this should go in a main Scribe.lua somewhere...
-    testInspector = Inspector:GetOrCreate(_C(), LocalPropertyInterface)
-    testInspector:MakeGlobal()
-    testInspector.Window.Open = false
-
     Scribe.SettingsWindow = Imgui.CreateCommonWindow(Ext.Loca.GetTranslatedString("hb23f384926b64c349bd61fd84f23c88c3d4d", "Scribe Settings"), {
         AlwaysAutoResize = LocalSettings:GetOr(true, Static.Settings.SettingsAutoResize),
         MinSize = {250, 850},
@@ -77,11 +72,7 @@ function Scribe.GenerateSettingsWindow()
     local keybindingsGroup = Scribe.SettingsWindow:AddGroup("KeybindingsGroup")
     keybindingsGroup:AddText(Ext.Loca.GetTranslatedString("h9727f426570b4fe39ae10934eb6510996b0d", "Open/Close Scribe"))
     keybindScribe = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
-        "OpenCloseScribe", "SLASH", {"None"}, openCloseScribe, openCloseScribeChanged)
-
-    keybindingsGroup:AddText("Launch Norbscribe")
-    keybindNorbScribe = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
-        "LaunchNorbScribe", "T", {"Shift"}, launchNorbScribe)
+        "OpenCloseScribe", "T", {"Shift"}, openCloseScribe, openCloseScribeChanged)
 
     WatchWindow = require("Lib.Aahz.Client.Classes.WatchWindow")
     keybindingsGroup:AddText("Open Watch Window") -- Testing

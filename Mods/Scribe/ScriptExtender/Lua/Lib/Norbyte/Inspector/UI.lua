@@ -6,76 +6,49 @@ local ObjectPath = H.ObjectPath
 local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 
 --- @class Inspector
+--- @field Window ExtuiWindow
+--- @field LeftContainer ExtuiChildWindow
+--- @field RightContainer ExtuiChildWindow
+--- @field TargetLabel ExtuiText
+--- @field TreeView ExtuiTree
+--- @field PropertiesView PropertyListView
+--- @field Target EntityHandle?
 --- @field PropertyInterface LocalPropertyInterface
+--- @field IsGlobal boolean
+--- @field WindowName string
+--- @field Instances table<EntityHandle,Inspector>
 Inspector = {
     Instances = {}
 }
 
 ---@return Inspector
 ---@param intf LocalPropertyInterface|NetworkPropertyInterface
-function Inspector:New(intf)
-	local o = {
-		Window = nil,
-        LeftContainer = nil,
-        RightContainer = nil,
-        TargetLabel = nil,
-        TreeView = nil,
-        PropertiesView = nil,
-        Target = nil,
-        PropertyInterface = intf
-	}
+function Inspector:New(intf, o)
+	o = o or {}
+    o.PropertyInterface = intf
+    o.WindowName = o.WindowName or "Object Inspector"
 	setmetatable(o, self)
     self.__index = self
     return o
 end
 
-
-function Inspector:GetOrCreate(entity, intf)
+function Inspector:GetOrCreate(entity, intf, o)
     if self.Instances[entity] ~= nil then
         return self.Instances[entity]
     end
 
-    local i = self:New(intf)
+    local i = self:New(intf, o)
     i:Init(tostring(entity))
     i:UpdateInspectTarget(entity)
     ImguiThemeManager:Apply(i.Window)
     return i
 end
 
-
 function Inspector:Init(instanceId)
-    self.Window = Imgui.CreateCommonWindow("Object Inspector", {
+    self.Window = self.Window or Imgui.CreateCommonWindow(self.WindowName, {
         IDContext = instanceId,
     })
-    -- self.Window:SetSize({500, 500}, "FirstUseEver")
 
-    -- Menu stuff
-    local windowMainMenu = self.Window:AddMainMenu()
-    local fileMenu = windowMainMenu:AddMenu(Ext.Loca.GetTranslatedString("h6d62ce733f1349ed8ca2d41e743dd9af2656", "File"))
-    local settingsMenu = fileMenu:AddItem(Ext.Loca.GetTranslatedString("hca001b2e6e7a49e9b152735a3a799083281g", "Settings"))
-    local openCloseLogger = fileMenu:AddItem(Ext.Loca.GetTranslatedString("h0a751a9f868d4b378b2e2616dca4672f4120", "Open/Close Logger"))
-    -- Scribe.SettingsWindow = Scribe.GenerateSettingsWindow() -- FIXME
-    if Ext.Debug.IsDeveloperMode() then
-        -- Right align button :deadge:
-        Imgui.CreateRightAlign(windowMainMenu, 75, function(c)
-            local resetButton = c:AddButton(Ext.Loca.GetTranslatedString("hc491ab897f074d7b9d7b147ce12b92fa32g5", "Reset"))
-            resetButton:Tooltip():AddText("\t\t"..Ext.Loca.GetTranslatedString("hec0ec5eaf174476886e2b4487f7e4a50e5b5", "Performs an Ext.Debug.Reset() (like resetting in the console)"))
-            resetButton.OnClick = function() Ext.Debug.Reset() end
-        end)
-    end
-
-    openCloseLogger.OnClick = function()
-        if MainScribeLogger == nil then return end
-        MainScribeLogger.Window.Open = not MainScribeLogger.Window.Open
-    end
-    settingsMenu.OnClick = function ()
-        if Scribe and Scribe.SettingsWindow ~= nil then
-            Scribe.SettingsWindow.Open = not Scribe.SettingsWindow.Open
-        end
-    end
-
-    local viewportMinConstraints = {400, 400}
-    self.Window:SetStyle("WindowMinSize", viewportMinConstraints[1]*2, viewportMinConstraints[2])
     local layoutTab = self.Window:AddTable("", 2)
     layoutTab:AddColumn("InspectorTreeView", "WidthStretch", 14) -- proportional
     layoutTab:AddColumn("InspectorPropertyView", "WidthStretch", 20) -- proportional
@@ -84,23 +57,27 @@ function Inspector:Init(instanceId)
     local rightCol = layoutRow:AddCell()
     self.LeftContainer = leftCol:AddChildWindow("")
     self.RightContainer = rightCol:AddChildWindow("")
-    self.TargetHoverLabel = self.LeftContainer:AddText("Hovered: ")
-    self.TargetHoverLabel.Visible = false
-    self.TargetLabel = self.LeftContainer:AddText("")
+    -- Target Group is only applicable for global windows
+    self.TargetGroup = self.LeftContainer:AddGroup("TargetGroup"..instanceId)
+    self.TargetHoverLabel = self.TargetGroup:AddText("Hovered: ")
+    self.TargetLabel = self.TargetGroup:AddText("")
+    self.TargetLabel.SameLine = true
+    self.TargetGroup.Visible = false
+
     self.EntityCardContainer = self.LeftContainer:AddGroup("")
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
-    self.PropertiesView.OnEntityClick = function (path) -- FIXME can separate this out
-        -- RPrint("Clicked OnEntityClick")
-        local i = self:GetOrCreate(path, self.PropertyInterface)
-        i:ExpandNode(i.TreeView)
-        i.TreeView.DefaultOpen = true
-        i.Window:SetFocus()
-    end
+    -- self.PropertiesView.OnEntityClick = function (path) -- FIXME borken, can separate this out
+    --     -- RPrint("Clicked OnEntityClick")
+    --     local i = self:GetOrCreate(path, self.PropertyInterface)
+    --     i:ExpandNode(i.TreeView)
+    --     i.TreeView.DefaultOpen = true
+    --     i.Window:SetFocus()
+    -- end
 
     self.Window.OnClose = function (e)
-        self:UpdateInspectTarget(nil)
         if not self.IsGlobal then
+            self:UpdateInspectTarget(nil)
             self.Window:Destroy()
         end
     end
@@ -110,8 +87,7 @@ end
 function Inspector:MakeGlobal()
     self.IsGlobal = true
     self.Window.Closeable = false
-    self.TargetHoverLabel.Visible = true
-    self.TargetLabel.SameLine = true
+    self.TargetGroup.Visible = true
     Ext.Events.Tick:Subscribe(function ()
         local picker = Ext.UI.GetPickingHelper(1)
         if picker == nil then return end
@@ -192,19 +168,19 @@ function Inspector:UpdateInspectTarget(target)
         self.Instances[self.Target] = nil
     end
 
+    local entityName
     if targetEntity ~= nil then
         self.Target = targetEntity
         self.TargetId = target
         self.Instances[targetEntity] = self
-        self:GenerateEntityCard(targetEntity)
+        -- self:GenerateEntityCard(targetEntity)
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
         self.TreeView.IDContext = Ext.Math.Random()
-        self.Window.Label = "Object Inspector - " .. (GetEntityName(targetEntity) or tostring(targetEntity))
-    else
-        self.Window.Label = "Object Inspector"
+        entityName = (GetEntityName(targetEntity) or tostring(targetEntity))
     end
+    self.Window.Label = self.WindowName..(entityName and string.format(" (%s)", entityName) or "")
 end
 
 ---Generates an entity card for the left-top inspector container

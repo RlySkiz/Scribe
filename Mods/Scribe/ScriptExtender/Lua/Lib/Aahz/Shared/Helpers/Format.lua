@@ -19,6 +19,31 @@ function Helpers.Format.IsValidUUID(uuid)
     return type(match) == "string"
 end
 
+
+-- string.find but not case sensitive
+--@param str1 string       - string 1 to compare
+--@param str2 string       - string 2 to compare
+function Helpers.Format.CaseInsensitiveSearch(str1, str2)
+    str1 = string.lower(str1)
+    str2 = string.lower(str2)
+    local result = string.find(str1, str2, 1, true)
+    return result ~= nil
+end
+
+--- Retrieves the value of a specified property from an object or returns a default value if the property doesn't exist.
+-- @param obj           The object from which to retrieve the property value.
+-- @param propertyName  The name of the property to retrieve.
+-- @param defaultValue  The default value to return if the property is not found.
+-- @return              The value of the property if found; otherwise, the default value.
+function Helpers.Format.GetPropertyOrDefault(obj, propertyName, defaultValue)
+    local success, value = pcall(function() return obj[propertyName] end)
+    if success then
+        return value or defaultValue
+    else
+        return defaultValue
+    end
+end
+
 function Helpers.Dump(obj, requestedName)
     local data = ""
     local path = "Scribe/_Dumps/"

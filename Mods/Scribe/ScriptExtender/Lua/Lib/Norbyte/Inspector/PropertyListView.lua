@@ -150,7 +150,7 @@ function PropertyListView:Refresh()
             -- Determine good path name
             local placeholderPath
             if IsEntity(self.Target.Root) then
-                local entityName = GetEntityName(self.Target.Root)
+                local entityName = GetEntityName(self.Target.Root) or tostring(self.Target.Root)
                 local lastPathSegment = self.Target.Path[#self.Target.Path]
                 if type(lastPathSegment) == "number" then
                     local previousSegment = self.Target.Path[#self.Target.Path - 1]
