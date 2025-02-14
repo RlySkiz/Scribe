@@ -44,6 +44,46 @@ function Helpers.Format.GetPropertyOrDefault(obj, propertyName, defaultValue)
     end
 end
 
+--- @param e EntityHandle
+function Helpers.GetEntityName(e)
+    if e == nil then return nil end
+
+    if e.CustomName ~= nil then
+        return e.CustomName.Name
+    elseif e.DisplayName ~= nil then
+        return Ext.Loca.GetTranslatedString(e.DisplayName.NameKey.Handle.Handle)
+    elseif e.GameObjectVisual ~= nil then
+        return Ext.Template.GetTemplate(e.GameObjectVisual.RootTemplateId).Name
+    elseif e.Visual ~= nil and e.Visual.Visual ~= nil and e.Visual.Visual.VisualResource ~= nil then
+        local name
+        -- Jank to get last part
+        for part in string.gmatch(e.Visual.Visual.VisualResource.Template, "[a-zA-Z0-9_.]+") do
+            name = part
+        end
+        return name
+    elseif e.SpellCastState ~= nil then
+        return "Spell Cast " .. e.SpellCastState.SpellId.Prototype
+    elseif e.ProgressionMeta ~= nil then
+        --- @type ResourceProgression
+        local progression = Ext.StaticData.Get(e.ProgressionMeta.Progression, "Progression")
+        return "Progression " .. progression.Name
+    elseif e.BoostInfo ~= nil then
+        return "Boost " .. e.BoostInfo.Params.Boost
+    elseif e.StatusID ~= nil then
+        return "Status " .. e.StatusID.ID
+    elseif e.Passive ~= nil then
+        return "Passive " .. e.Passive.PassiveId
+    elseif e.InterruptData ~= nil then
+        return "Interrupt " .. e.InterruptData.Interrupt
+    elseif e.InventoryIsOwned ~= nil then
+        return "Inventory of " .. GetEntityName(e.InventoryIsOwned.Owner)
+    elseif e.Uuid ~= nil then
+        return e.Uuid.EntityUuid
+    else
+        return nil
+    end
+end
+
 function Helpers.Dump(obj, requestedName)
     local data = ""
     local path = "Scribe/_Dumps/"

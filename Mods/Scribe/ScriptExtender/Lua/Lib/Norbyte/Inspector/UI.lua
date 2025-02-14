@@ -1,7 +1,6 @@
 local H = Ext.Require("Lib/Norbyte/Helpers.lua")
 local GetEntityName = H.GetEntityName
 local GetPropertyMeta = H.GetPropertyMeta
-local ObjectPath = H.ObjectPath
 
 local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 
