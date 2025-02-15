@@ -38,6 +38,58 @@ function Imgui.AnimateColor(el, colorProp, initialColor, highlightColor, animati
     Imgui.MainTick:Take(animationLength):Subscribe(simpleTween, resetColor, resetColor)
 end
 
+--- Tracks original pre-jiggle position of imgui element, by handle
+---@type table<integer, vec2>
+local originalOffsetMap = {}
+
+---@param el ExtuiStyledRenderable
+---@param jiggleX boolean? #jiggle in the X direction too
+function Imgui.Jiggle(el, jiggleX)
+    if originalOffsetMap[el.Handle] == nil then
+        originalOffsetMap[el.Handle] = el.PositionOffset or {0,0}
+    end
+    local originalOffset = originalOffsetMap[el.Handle]
+    local amplitude = 2
+    local frequency = 2 * math.pi / 10  -- Adjust frequency for desired speed
+
+    local function jiggle(frame)
+        local offsetX = jiggleX and (amplitude * math.sin(frame * frequency) * (math.random() > 0.5 and 1 or -1)) or 0
+        local offsetY = amplitude * math.sin(frame * frequency) * (math.random() > 0.5 and 1 or -1)
+        el.PositionOffset = {originalOffset[1] + offsetX, originalOffset[2] + offsetY}
+    end
+
+    local function reset()
+        el.PositionOffset = originalOffsetMap[el.Handle]
+        originalOffsetMap[el.Handle] = nil
+    end
+
+    Imgui.MainTick:Take(10):Subscribe(jiggle, reset, reset)
+end
+
+---@type table<integer, integer>
+local originalBorderSizeMap = {}
+---Pulses the frame border around an element for a few frames
+---@param el ExtuiStyledRenderable
+---@param size integer
+function Imgui.BorderPulse(el, size)
+    if originalBorderSizeMap[el.Handle] == nil then
+        originalBorderSizeMap[el.Handle] = el:GetStyle("FrameBorderSize") or 0
+    end
+    local originalBorderSize = originalBorderSizeMap[el.Handle]
+    local amplitude = size
+    local frequency = 2 * math.pi / 15  -- Adjust frequency for desired speed
+    local function pulse(frame)
+        local frameBorderIncrease = amplitude * math.sin(frame * frequency) * (math.random() > 0.5 and 1 or -1)
+        el:SetStyle("FrameBorderSize", originalBorderSize + frameBorderIncrease)
+    end
+    local function reset()
+        el:SetStyle("FrameBorderSize", originalBorderSizeMap[el.Handle] or 0)
+        originalBorderSizeMap[el.Handle] = nil
+    end
+    
+    Imgui.MainTick:Take(30):Subscribe(pulse, reset, reset)
+end
+
 -- local testWin
 -- -- Test animation only
 -- Ext.Events.ResetCompleted:Subscribe(function()

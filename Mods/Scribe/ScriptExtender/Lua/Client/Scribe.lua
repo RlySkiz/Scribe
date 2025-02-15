@@ -22,6 +22,20 @@ Scribe.ImguiTheme = DefaultImguiTheme
 Scribe.WindowName = "Scribe"
 Scribe.Inspectors = {}
 
+-- Load and Ready-up the FirstTime agreement window
+Scribe.FirstTimeWindow = require("Client.FirstTimeWindow")
+FirstTime:Subscribe(function(v)
+    if v then Scribe.FirstTimeWindow = nil end
+end)
+
+function Scribe:OpenClose()
+    if self.FirstTimeWindow then
+        self.FirstTimeWindow.Open = not self.FirstTimeWindow.Open
+    else
+        self.Window.Open = not self.Window.Open
+    end
+end
+
 function Scribe:Initialize()
     self.Window = self.Window or Imgui.CreateCommonWindow(self.WindowName, {
         IDContext = "MainScribe",
@@ -90,7 +104,7 @@ Ext.RegisterNetListener("MCM_Server_Send_Configs_To_Client", function(_, payload
         treeParent:AddDummy(20,1)
         local openButton = treeParent:AddButton(Ext.Loca.GetTranslatedString("h83db5cf7gfce3g475egb16fg37d5f05005e3", "Open/Close"))
         openButton.OnClick = function()
-            Scribe.Window.Open = not Scribe.Window.Open
+            Scribe:OpenClose()
         end
     end)
 end)

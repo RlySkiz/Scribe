@@ -25,7 +25,7 @@ function GuidLookup:Lookup(guid)
         return Ext[lookup.Location].Get(guid, lookup.ResourceType)
     end
 end
-local function loadLater()
+function GuidLookup._Initialize()
     ---@param rmt GuidResourceType
     for _,rmt in ipairs(Ext.Enums.ExtResourceManagerType) do
         if rmt == "Max" then break end
@@ -52,6 +52,6 @@ local function loadLater()
     GuidLookup.Ready = true
 end
 
-Ext.Events.ResetCompleted:Subscribe(loadLater)
-Ext.Events.SessionLoaded:Subscribe(loadLater)
+Ext.Events.ResetCompleted:Subscribe(GuidLookup._Initialize)
+Ext.Events.SessionLoaded:Subscribe(GuidLookup._Initialize)
 return GuidLookup

@@ -6,9 +6,8 @@ local keybindNorbScribe ---@type Keybinding
 local keybindWatchWindow ---@type Keybinding
 
 local function openCloseScribe()
-    if Scribe and Scribe.Window then
-        Scribe.Window.Open = not Scribe.Window.Open
-        Scribe.Window.Visible = Scribe.Window.Open
+    if Scribe and Scribe.OpenClose then
+        Scribe:OpenClose()
     end
 end
 local function openCloseScribeChanged()
@@ -27,18 +26,14 @@ local function openCloseScribeChanged()
     --     module.GivenWindow.UserData.OpenCloseItem.Shortcut = newShortcut
     -- end
 end
--- local testInspector
-local function launchNorbScribe()
-    if Scribe and Scribe.Window then
-        Scribe.Window.Window.Open = not Scribe.Window.Window.Open
-        Scribe.Window.Window.Visible = Scribe.Window.Window.Open
-    end
-end
 
+-- TODO move this to cleaner place
 ---@type WatchWindow?
 WatchWindow = nil
 local function openCloseWatchWindow()
-    if WatchWindow and WatchWindow.Window then
+    if Scribe and Scribe.FirstTimeWindow then
+        Scribe:OpenClose()
+    elseif WatchWindow and WatchWindow.Window then
         WatchWindow.Window.Open = not WatchWindow.Window.Open
         WatchWindow.Window.Visible = WatchWindow.Window.Open
     end

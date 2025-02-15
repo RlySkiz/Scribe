@@ -13,6 +13,22 @@ RX = Ext.Require("Lib/ReactiveX/reactivex/_init.lua")
 RequireFiles("Lib/", {
     "Aahz/_Init",
 })
+-- First time Scribe usage
+FirstTime = RX.ReplaySubject.Create(1)
+local firstTimeAgreed = LocalSettings:Get("FirstTimeAgreed")
+if firstTimeAgreed then
+    FirstTime:OnNext(true)
+end
+-- FirstTime:Subscribe(function(v) SPrint("First time checked: %s", v) end)
+---@type GuidLookup?
+GuidLookup = nil
+
+FirstTime:Subscribe(function(v)
+    if v and not GuidLookup then
+        GuidLookup = Ext.Require(ModuleUUID, "Lib/Aahz/Shared/Classes/GuidLookup.lua")
+        GuidLookup._Initialize()
+    end
+end)
 
 Inspector = Ext.Require("Lib/Norbyte/Inspector/UI.lua")
 LocalPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/LocalPropertyInterface.lua")
