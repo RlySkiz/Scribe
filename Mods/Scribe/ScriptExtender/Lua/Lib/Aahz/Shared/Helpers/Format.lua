@@ -84,6 +84,22 @@ function Helpers.GetEntityName(e)
     end
 end
 
+-- Removes illegal characters from a string.
+-- < (less than)
+-- > (greater than)
+-- : (colon)
+-- " (double quote)
+-- / (forward slash)
+-- \ (backslash)
+-- | (vertical bar or pipe)
+-- ? (question mark)
+-- * (asterisk)
+-- @param str The input string to be sanitized.
+-- @return A new string with the illegal characters removed.
+function Helpers.Format.SanitizeFileName(str)
+    return string.gsub(str, "[<>:\"/\\|%?%*]", "")
+end
+
 function Helpers.Dump(obj, requestedName)
     local data = ""
     local path = "Scribe/_Dumps/"

@@ -102,7 +102,7 @@ end
 Ext.RegisterNetListener("MCM_Server_Send_Configs_To_Client", function(_, payload)
     Mods.BG3MCM.IMGUIAPI:InsertModMenuTab(ModuleUUID, "Scribe", function(treeParent)
         treeParent:AddDummy(20,1)
-        local openButton = treeParent:AddButton(Ext.Loca.GetTranslatedString("h83db5cf7gfce3g475egb16fg37d5f05005e3", "Open/Close"))
+        local openButton = treeParent:AddButton(Ext.Loca.GetTranslatedString("h9727f426570b4fe39ae10934eb6510996b0d", "Open/Close Scribe"))
         openButton.OnClick = function()
             Scribe:OpenClose()
         end
