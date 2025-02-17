@@ -2,18 +2,21 @@
 ---@class ImguiDualPane: MetaClass
 ---@field TreeParent ExtuiTreeParent
 ---@field ChangesSubject Subject
+---@field private SearchInput ExtuiInputText
 ---@field private LeftPane ExtuiChildWindow
 ---@field private RightPane ExtuiChildWindow
 ---@field private _containerGroup ExtuiGroup
 ---@field private _headerTable ExtuiTable
 ---@field private _optionsMap table<string, boolean> -- key is the option, value is true/false (selected/available)
 ---@field private _doubleClickTimeMap table<string, number>
+---@field private _tooltipCache table<string,string>
 ---@field Ready boolean
 ImguiDualPane = _Class:Create("ImguiDualPane", nil, {
     Ready = false,
     TreeParent = nil,
     _doubleClickTimeMap = {},
     _optionsMap = {},
+    _tooltipCache = {},
 })
 
 ---@enum DualPaneChangeType
@@ -27,6 +30,7 @@ DualPaneChangeType = {
 ---@class DualPaneChange
 ---@field ChangeType DualPaneChangeType
 ---@field Value string
+---@field TooltipText string? # when adding options only
 
 ---Called automatically after creation, via :New{}
 ---Use dualPane:AddOption() after as many times as needed
@@ -43,7 +47,8 @@ function ImguiDualPane:Init()
                 -- Add to data
                 self._optionsMap[change.Value] = false
                 -- Add to visual imgui
-                self:_AddAvailableOption(change.Value)
+                if change.TooltipText then self._tooltipCache[change.Value] = change.TooltipText end
+                self:_AddAvailableOption(change.Value, change.TooltipText)
             else
                 -- SWarn("Attempted to add option that already exists: %s", change.Value)
             end
@@ -93,10 +98,11 @@ end
 
 --- Adds a string as an available option to choose
 ---@param option string
-function ImguiDualPane:AddOption(option)
+function ImguiDualPane:AddOption(option, tooltipText)
     self.ChangesSubject:OnNext({
         ChangeType = DualPaneChangeType.AddOption,
         Value = option,
+        TooltipText = tooltipText,
     })
 end
 
@@ -138,12 +144,29 @@ function ImguiDualPane:GetAllOptions()
     return allOptions
 end
 
+---@param option string # search query against available options
+---@return boolean
+function ImguiDualPane:SearchPassed(option)
+    local currentSearch = self.SearchInput.Text:lower()
+    return currentSearch == "" or option:lower():find(currentSearch, 1, true) ~= nil
+end
+
 ---@private
 function ImguiDualPane:InitializeLayout()
     if self.Ready then return end -- only initialize once
     if self.TreeParent == nil then return end -- bail if no tree parent set
     local id = self.TreeParent.IDContext or ""
     local container = self.TreeParent:AddGroup(id.."_DualPane")
+    -- Search Input
+    local si = container:AddInputText("")
+    si.Hint = "Search..."
+    self.SearchInput = si
+    si.EscapeClearsAll = true
+    si.SizeHint = {-1,32*Imgui.ScaleFactor()}
+    si.AutoSelectAll = true
+    si.OnChange = function()
+        self:_RedrawLeftPane()
+    end
 
     -- Quick headers in a table with set widths to match child windows
     local labelTable = container:AddTable(id.."_DualPane_Labels", 3)
@@ -295,7 +318,7 @@ function ImguiDualPane:_RedrawLeftPane(desc)
     if not self.Ready then return end
     Imgui.ClearChildren(self.LeftPane)
     for k, v in table.pairsByKeys(self._optionsMap, desc) do
-        if not v then
+        if not v and self:SearchPassed(k) then
             -- Only changes the visual imgui, not underlying data
             self:_AddAvailableOption(k)
         end
@@ -377,9 +400,13 @@ local function handleDoubleClick(self, selectable, changeType)
     end
 end
 
-local function addSelectable(self, pane, option, changeType)
+local function addSelectable(self, pane, option, changeType, tooltipText)
     local selectable = pane:AddSelectable(option)
     selectable.AllowDoubleClick = true
+    if tooltipText then
+        SPrint("Adding tooltip: %s", tooltipText)
+        selectable:Tooltip():AddText("\t"..(tostring(tooltipText)))
+    end
     selectable.OnClick = function(s)
         handleDoubleClick(self, s, changeType)
     end
@@ -398,9 +425,10 @@ end
 --- Adds new option to left IMGUI pane with the given newOption name
 --- @private
 --- @param newOption string
-function ImguiDualPane:_AddAvailableOption(newOption)
+function ImguiDualPane:_AddAvailableOption(newOption, tooltipText)
     if not self.Ready then return end
-    addSelectable(self, self.LeftPane, newOption, DualPaneChangeType.SelectItem)
+    tooltipText = tooltipText or self._tooltipCache[newOption]
+    addSelectable(self, self.LeftPane, newOption, DualPaneChangeType.SelectItem, tooltipText)
 end
 
 --- Removes imgui selectable from left (available) pane by name

@@ -66,6 +66,8 @@ ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
 local private = {
 	SpamComponents = {},
 	StatusComponents = {},
+    KnownComponents = {},
+    UnknownComponents = {},
 }
 function ImguiECSLogger:Init()
     self.Ready = false
@@ -209,6 +211,17 @@ function ImguiECSLogger:CreateComponentWatchWindow()
     local dualPane = ImguiDualPane:New{
         TreeParent = win,
     }
+    local cachedKnownComponents = Cache:GetOr({}, CacheData.RuntimeComponentNames)
+    for t, name in table.pairsByKeys(cachedKnownComponents) do
+        private.KnownComponents[t] = name
+        dualPane:AddOption(t, name)
+    end
+    local cachedUnknownComponents = Cache:GetOr({}, CacheData.UnmappedComponentNames)
+    for t, _ in table.pairsByKeys(cachedUnknownComponents) do
+        private.UnknownComponents[t] = true
+        dualPane:AddOption(t, string.format("Unmapped: %s", t))
+    end
+
     self.WatchComponentWindow = win
     self.WatchDualPane = dualPane
     watchedComponentsButton.OnClick = function() win.Open = not win.Open end
@@ -306,6 +319,14 @@ function ImguiECSLogger:OnTick()
                     end
                     newEntry:AddSubEntry(newsub..tostring(component.Name))
                     self.WatchDualPane:AddOption(component.Name)
+                    if not private.KnownComponents[component.Name] then
+                        -- Unmapped component
+                        if not private.UnknownComponents[component.Name] then
+                            -- Really unknown unknown, add locally, update Cache file
+                            private.UnknownComponents[component.Name] = true
+                            Cache:AddOrChange(CacheData.UnmappedComponentNames, private.UnknownComponents)
+                        end
+                    end
                 end
             end
             self:AddLogEntry(newEntry)
