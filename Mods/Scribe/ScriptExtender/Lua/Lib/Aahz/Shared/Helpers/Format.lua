@@ -127,7 +127,8 @@ function Helpers.Dump(obj, requestedName)
         end
         data = Ext.DumpExport(obj)
     end
-
+    path = Helpers.Format.SanitizeFileName(path)
+    
     -- Path and data finalized, handle filename taken and overwriting
     local warn = false
     if Ext.IO.LoadFile(path.."_0.json") ~= nil then -- already have file named this

@@ -41,6 +41,7 @@ end
 --- @param e EntityHandle
 function GetEntityName(e)
     if e == nil then return nil end
+    if Ext.Types.GetValueType(e) ~= "Entity" then return nil end
 
     if e.CustomName ~= nil then
         return e.CustomName.Name
