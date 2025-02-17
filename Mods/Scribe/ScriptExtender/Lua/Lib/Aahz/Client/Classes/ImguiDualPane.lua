@@ -404,7 +404,6 @@ local function addSelectable(self, pane, option, changeType, tooltipText)
     local selectable = pane:AddSelectable(option)
     selectable.AllowDoubleClick = true
     if tooltipText then
-        SPrint("Adding tooltip: %s", tooltipText)
         selectable:Tooltip():AddText("\t"..(tostring(tooltipText)))
     end
     selectable.OnClick = function(s)
