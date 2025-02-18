@@ -106,6 +106,15 @@ Ext.RegisterNetListener("MCM_Server_Send_Configs_To_Client", function(_, payload
         openButton.OnClick = function()
             Scribe:OpenClose()
         end
+
+        local descriptionText = openButton:Tooltip():AddText(Ext.Loca.GetTranslatedString("ha726ac21329648d38f68321f51209253g4g7",
+        [[
+Open a window and inspect an entity via middle mouse click.
+Only works while the window is open.
+Check the small "!" buttons to look up additional information about resources.
+Component names are clickable to be put on a watchlist.
+Themes and an Event Logger can be found in the menu bar.
+]]))
     end)
 end)
 
