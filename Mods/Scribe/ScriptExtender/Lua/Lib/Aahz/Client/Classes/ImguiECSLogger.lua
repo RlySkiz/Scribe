@@ -36,6 +36,7 @@
 --- @field PrintToConsoleCheckbox ExtuiCheckbox
 --- @field WatchComponentWindow ExtuiWindow
 --- @field WatchDualPane ImguiDualPane
+--- @field WatchedComponents table<string,boolean>
 --- @field ApplyWatchFilters boolean
 --- @field AutoInspect boolean
 --- @field AutoDump boolean
@@ -266,6 +267,10 @@ function ImguiECSLogger:CreateComponentWatchWindow()
 
     self.WatchComponentWindow = win
     self.WatchDualPane = dualPane
+    self.WatchDualPane.ChangesSubject:Subscribe(function(c)
+        private.WatchedComponents = self.WatchDualPane:GetOptionsMap()
+    end)
+    private.WatchedComponents = self.WatchDualPane:GetOptionsMap() -- init
     watchedComponentsButton.OnClick = function() win.Open = not win.Open end
 end
 
@@ -326,12 +331,15 @@ function ImguiECSLogger:OnTick()
                 if changes.Destroy then msg = msg .. "\x1b[31m Destroyed" end
                 print(msg)
             end
+            local entityName = self:GetEntityName(entity)
+            local inspectThisEntity = false
+            local dumpThisEntity = false
 
             local newEntry = EntityLogEntry:New{
                 Entity = entity,
                 TimeStamp = self.FrameNo,
-                _Entry = self:GetEntityName(entity),
-                _FilterableEntry = self:GetEntityName(entity),
+                _Entry = entityName,
+                _FilterableEntry = entityName,
                 _Category = "Unknown"
             }
             if newEntry._Entry == "" then newEntry._Entry = tostring(entity) newEntry._FilterableEntry = "UnnamedEntity" end
@@ -388,6 +396,19 @@ function ImguiECSLogger:OnTick()
                             Cache:AddOrChange(CacheData.UnmappedComponentNames, private.UnknownComponents)
                         end
                     end
+                    if self.AutoInspect and private.WatchedComponents[component.Name] then
+                        inspectThisEntity = true
+                    end
+                    if self.AutoDump and private.WatchedComponents[component.Name] then
+                        dumpThisEntity = true
+                    end
+                end
+                if dumpThisEntity then
+                    Helpers.Dump(entity, string.format("AutoDump-%s", entityName))
+                end
+                if inspectThisEntity then
+                    -- Inspector:GetOrCreate(entity, LocalPropertyInterface) -- TODO fix extra instances (init order problem?)
+                    Scribe:UpdateInspectTarget(entity)
                 end
             end
             newEntry.Components = componentNames

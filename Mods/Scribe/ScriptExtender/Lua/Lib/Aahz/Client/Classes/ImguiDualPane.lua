@@ -144,6 +144,10 @@ function ImguiDualPane:GetAllOptions()
     end
     return allOptions
 end
+function ImguiDualPane:GetOptionsMap()
+    -- hmm
+    return self._optionsMap
+end
 
 ---@param option string # search query against available options
 ---@return boolean

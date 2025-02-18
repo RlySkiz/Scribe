@@ -102,9 +102,8 @@ end
 
 function Helpers.Dump(obj, requestedName)
     local data = ""
-    local path = "Scribe/_Dumps/"
+    local path = ""
     local context = Ext.IsServer() and "S" or "C"
-    path = string.format("%s[%s]", path, context)
     local objType = Ext.Types.GetObjectType(obj)
     if objType then
         local typeInfo = Ext.Types.GetTypeInfo(objType)
@@ -127,8 +126,8 @@ function Helpers.Dump(obj, requestedName)
         end
         data = Ext.DumpExport(obj)
     end
-    path = Helpers.Format.SanitizeFileName(path)
-    
+    path = string.format("Scribe/_Dumps/[%s]%s", context, Helpers.Format.SanitizeFileName(path))
+
     -- Path and data finalized, handle filename taken and overwriting
     local warn = false
     if Ext.IO.LoadFile(path.."_0.json") ~= nil then -- already have file named this
