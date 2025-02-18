@@ -18,7 +18,6 @@ local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 Scribe = Scribe or {}
 Scribe.__index = Scribe
 Scribe.AllWindows = Scribe.AllWindows or {}
-Scribe.ImguiTheme = DefaultImguiTheme
 Scribe.WindowName = "Scribe"
 Scribe.Inspectors = {}
 
@@ -67,9 +66,15 @@ function Scribe:Initialize()
     self.Window.OnClose = function (e)
         -- self:UpdateInspectTarget(nil)
     end
-    
+
     Scribe.SettingsWindow = Scribe.GenerateSettingsWindow()
     Scribe:UpdateInspectTarget(_C() --[[@as EntityHandle]])
+
+    Scribe.ScribeLogger = ScribeLogger:New()
+
+    -- Ready up
+    -- RPrint("Readying up...")
+    ScribeReady:OnNext(true)
 end
 function Scribe:CreateMenus()
     -- Create main menu
@@ -88,8 +93,8 @@ function Scribe:CreateMenus()
         end)
     end
     openCloseLogger.OnClick = function()
-        if MainScribeLogger == nil then return end
-        MainScribeLogger.Window.Open = not MainScribeLogger.Window.Open
+        if self.ScribeLogger == nil then return end
+        self.ScribeLogger.Window.Open = not self.ScribeLogger.Window.Open
     end
     settingsMenu.OnClick = function ()
         if Scribe and Scribe.SettingsWindow ~= nil then

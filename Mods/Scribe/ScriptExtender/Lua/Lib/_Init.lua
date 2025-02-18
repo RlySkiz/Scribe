@@ -10,6 +10,12 @@ end
 ---@module "reactivex._init"
 RX = Ext.Require("Lib/ReactiveX/reactivex/_init.lua")
 
+-- Coordinate Ready status, after initialization
+ScribeReady = RX.ReplaySubject.Create(1)
+Scribe = Scribe or {}
+Scribe.__index = Scribe
+Scribe.AllWindows = Scribe.AllWindows or {}
+
 RequireFiles("Lib/", {
     "Aahz/_Init",
 })

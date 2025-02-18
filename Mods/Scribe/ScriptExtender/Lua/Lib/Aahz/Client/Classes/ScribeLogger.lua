@@ -57,7 +57,3 @@ function ScribeLogger:InitializeLayout()
 
     self.Ready = true
 end
-MainScribeLogger = nil
-Ext.Events.SessionLoaded:Subscribe(function()
-    MainScribeLogger = ScribeLogger:New()
-end)
