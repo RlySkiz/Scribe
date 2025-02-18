@@ -18,24 +18,24 @@ local default = {
         ["Black2"] = "#0c0c0c",
     },
 }
-local skizTheme = {
+local skizRed = {
     ID = "44b9b09d-589a-4303-8b01-07f450e7b4b6",
-    Name = "SkizTheme",
+    Name = "SkizRed",
     ThemeColors = {
-        ["Accent1"] = "#476065",
-        ["Background"] = "#287F8F",
-        ["Accent2"] = "#4C90D6",
-        ["Highlight"] = "#E5D641",
-        ["Header"] = "#b4423e",
-        ["MainHover"] = "#7adffc",
-        ["MainActive"] = "#08c0F3",
-        ["MainText"] = "#EAF8F5",
-        ["Main"] = "#DAFCF4",
-        ["MainActive2"] = "#08c0F3",
+        ["Accent1"] = "#140404",
+        ["Accent2"] = "#641717",
+        ["Background"] = "#581212",
+        ["Black1"] = "#5B1212",
+        ["Black2"] = "#000000",
         ["Grey"] = "#696969",
         ["DarkGrey"] = "#505050",
-        ["Black1"] = "#242424",
-        ["Black2"] = "#0c0c0c",
+        ["Header"] = "#984242",
+        ["Highlight"] = "#940000",
+        ["Main"] = "#FFFFFF",
+        ["MainActive"] = "#B34848",
+        ["MainActive2"] = "#000000",
+        ["MainHover"] = "#FFFFFF",
+        ["MainText"] = "#FFFFFF",
     }
 }
 local easyTheme = {
@@ -102,7 +102,7 @@ local colorBlind1 = {
 }
 local defaultImguiThemes = {
     default,
-    skizTheme,
+    skizRed,
     easyTheme,
     highContrast,
     colorBlind1,
