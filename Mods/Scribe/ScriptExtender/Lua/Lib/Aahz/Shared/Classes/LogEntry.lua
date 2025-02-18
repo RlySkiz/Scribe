@@ -111,8 +111,10 @@ function ImguiLogEntry:Draw(logTable, verbose)
 end
 ---@class EntityLogEntry : LogEntry
 ---@field Entity EntityHandle
+---@field Components string[]
 EntityLogEntry = _Class:Create("EntityLogEntry", "LogEntry", {
     Entity = nil,
+    Components = {},
 })
 
 ---@param logTable ExtuiTable

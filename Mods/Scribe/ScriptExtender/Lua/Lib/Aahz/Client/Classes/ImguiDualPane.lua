@@ -7,16 +7,16 @@
 ---@field private RightPane ExtuiChildWindow
 ---@field private _containerGroup ExtuiGroup
 ---@field private _headerTable ExtuiTable
----@field private _optionsMap table<string, boolean> -- key is the option, value is true/false (selected/available)
 ---@field private _doubleClickTimeMap table<string, number>
----@field private _tooltipCache table<string,string>
+---@field private _optionsMap table<string, boolean> -- key is the option, value is true/false (selected/available)
+---@field private _optionMetaCache table<string, table<string, any>>
 ---@field Ready boolean
 ImguiDualPane = _Class:Create("ImguiDualPane", nil, {
     Ready = false,
     TreeParent = nil,
     _doubleClickTimeMap = {},
     _optionsMap = {},
-    _tooltipCache = {},
+    _optionMetaCache = {},
 })
 
 ---@enum DualPaneChangeType
@@ -30,7 +30,7 @@ DualPaneChangeType = {
 ---@class DualPaneChange
 ---@field ChangeType DualPaneChangeType
 ---@field Value string
----@field TooltipText string? # when adding options only
+---@field MetaInfo table<string, any>? # when adding options only, currently TooltipText and Highlight
 
 ---Called automatically after creation, via :New{}
 ---Use dualPane:AddOption() after as many times as needed
@@ -47,8 +47,8 @@ function ImguiDualPane:Init()
                 -- Add to data
                 self._optionsMap[change.Value] = false
                 -- Add to visual imgui
-                if change.TooltipText then self._tooltipCache[change.Value] = change.TooltipText end
-                self:_AddAvailableOption(change.Value, change.TooltipText)
+                if change.MetaInfo then self._optionMetaCache[change.Value] = change.MetaInfo end
+                self:_AddAvailableOption(change.Value, change.MetaInfo)
             else
                 -- SWarn("Attempted to add option that already exists: %s", change.Value)
             end
@@ -98,11 +98,12 @@ end
 
 --- Adds a string as an available option to choose
 ---@param option string
-function ImguiDualPane:AddOption(option, tooltipText)
+---@param metaInfo table<string, any>
+function ImguiDualPane:AddOption(option, metaInfo)
     self.ChangesSubject:OnNext({
         ChangeType = DualPaneChangeType.AddOption,
         Value = option,
-        TooltipText = tooltipText,
+        MetaInfo = metaInfo,
     })
 end
 
@@ -149,6 +150,14 @@ end
 function ImguiDualPane:SearchPassed(option)
     local currentSearch = self.SearchInput.Text:lower()
     return currentSearch == "" or option:lower():find(currentSearch, 1, true) ~= nil
+end
+
+---@param option string
+---@return boolean? # nil if doesn't exist at all, true if selected, false if available
+function ImguiDualPane:IsSelected(option)
+    if self._optionsMap[option] then
+        return self._optionsMap[option]
+    end
 end
 
 ---@private
@@ -400,12 +409,18 @@ local function handleDoubleClick(self, selectable, changeType)
     end
 end
 
-local function addSelectable(self, pane, option, changeType, tooltipText)
+local function addSelectable(self, pane, option, changeType, metaInfo)
     local selectable = pane:AddSelectable(option)
     selectable.AllowDoubleClick = true
-    if tooltipText then
-        selectable:Tooltip():AddText("\t"..(tostring(tooltipText)))
+    if metaInfo and metaInfo.TooltipText then
+        selectable:Tooltip():AddText("\t"..(tostring(metaInfo.TooltipText)))
     end
+    if metaInfo and metaInfo.Highlight then
+        local currentHex = ImguiThemeManager.CurrentTheme.ThemeColors.MainText
+        local highlightColor = Helpers.Color.HexToNormalizedRGBA(Helpers.Color.LerpHex(currentHex, "FFFFFF", 0.5), 1.0)
+        selectable:SetColor("Text", highlightColor)
+    end
+
     selectable.OnClick = function(s)
         handleDoubleClick(self, s, changeType)
     end
@@ -424,10 +439,12 @@ end
 --- Adds new option to left IMGUI pane with the given newOption name
 --- @private
 --- @param newOption string
-function ImguiDualPane:_AddAvailableOption(newOption, tooltipText)
+--- @param metaInfo table<string, any>
+function ImguiDualPane:_AddAvailableOption(newOption, metaInfo)
     if not self.Ready then return end
-    tooltipText = tooltipText or self._tooltipCache[newOption]
-    addSelectable(self, self.LeftPane, newOption, DualPaneChangeType.SelectItem, tooltipText)
+
+    metaInfo = metaInfo or self._optionMetaCache[newOption]
+    addSelectable(self, self.LeftPane, newOption, DualPaneChangeType.SelectItem, metaInfo)
 end
 
 --- Removes imgui selectable from left (available) pane by name
