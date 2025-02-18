@@ -10,21 +10,8 @@ ThemeManager = _Class:Create("ThemeManager", nil, {
     AvailableThemes = {},
 })
 
-local exampleData = {
-    [1] = {
-        ID = "1f3bbc0f-ead4-4b95-b680-4505b8116e17",
-        Name = "Name",
-        ThemeColors = {},
-    },
-    [2] = {
-        ID = "0fbeb77d-9963-4722-ace2-fbfa5d64675c",
-        Name = "SecondName",
-        ThemeColors = {},
-    }, --.. no preset limit
-}
-
 function ThemeManager:GenerateDefaults()
-    for i, theme in ipairs(defaultThemes) do
+    for _, theme in ipairs(defaultThemes) do
         self:AddPreset(theme)
     end
     self:SaveToFile()
@@ -36,23 +23,24 @@ function ThemeManager:Init()
         if table.isEmpty(self.AvailableThemes) then
             self:GenerateDefaults()
         else
-            SPrint("Color presets loaded from file: %s", self.LocalFileName)
+            SPrint("Theme presets loaded from file: %s", self.LocalFileName)
         end
     else
         -- TODO Warn or create initial presets?
         --SWarn("Couldn't load color presets from file: %s", self.LocalFileName)
         self:GenerateDefaults()
     end
-    self:DelayedTheming()
-end
--- FIXME this shouldn't be necessary when Scribe initialization process is settled, delaying 5 ticks
-function ThemeManager:DelayedTheming()
-    Ext.Timer.WaitFor(5, function()
-        local themeID = LocalSettings:GetOr(self.AvailableThemes[1].ID, Static.Settings.CurrentTheme) -- TODO save current theme by ID
-        local presetTheme = self:GetPreset(nil,themeID)
-        self.CurrentTheme = presetTheme or self.AvailableThemes[1]
+    -- Set current theme
+    local themeID = LocalSettings:GetOr(self.AvailableThemes[1].ID, Static.Settings.CurrentTheme) -- TODO save current theme by ID
+    local presetTheme = self:GetPreset(nil,themeID)
+    self.CurrentTheme = presetTheme or self.AvailableThemes[1]
+    
+    -- When scribe is ready, theme everything
+    ScribeReady:Subscribe(function(v)
         if Scribe and Scribe.AllWindows then
+            -- RPrint("Scribe is ready, applying themes...")
             for _, window in ipairs(Scribe.AllWindows) do
+                -- RPrint(("Applying theme to: %s"):format(window.Label))
                 self:Apply(window)
             end
         end
@@ -64,13 +52,13 @@ end
 --- Resulting file is "<anyFolders/here/inTheFileName>.json"
 ---@param fileName string|nil   Default: "Scribe/ImguiThemes.json"
 function ThemeManager:SaveToFile(fileName)
-    RPrint("Saving themes to file...")
+    -- RPrint("Saving themes to file...")
     local save = Ext.DumpExport(self.AvailableThemes)
     fileName = fileName or self.LocalFileName
     if save ~= nil then
         Ext.IO.SaveFile(fileName, save)
-        RPrint("Successful.")
-        RPrint(self:GetPreset(nil, nil, "HighContrast"))
+        -- RPrint("Successful.")
+        -- RPrint(self:GetPreset(nil, nil, "HighContrast"))
     else
         SWarn("Presets have invalid data, failed to save: %s", fileName)
     end
@@ -137,8 +125,8 @@ end
 ---@param data table<string,string|vec4>
 function ThemeManager:AddPreset(data)
     local d = ImguiTheme.CreateFromData(data)
-    RPrint("Adding theme")
-    RPrint(d)
+    -- RPrint("Adding theme")
+    -- RPrint(d)
     table.insert(self.AvailableThemes, d)
     self:SaveToFile()
 end
@@ -318,6 +306,8 @@ end
 function ThemeManager:Apply(element)
     if self.CurrentTheme then
         self.CurrentTheme:Apply(element)
+    else
+        SWarn("No current theme to apply.")
     end
 end
 

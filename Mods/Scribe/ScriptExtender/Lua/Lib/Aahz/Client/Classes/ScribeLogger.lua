@@ -35,6 +35,17 @@ function ScribeLogger:CreateWindow()
 
     -- Create MainMenu
     self.MainMenu = self.Window:AddMainMenu()
+    self.MainMenu.UserData = {
+        SubMenus = {},
+        RegisterSubMenu = function(menu)
+            self.MainMenu.UserData.SubMenus[menu.Handle] = menu
+        end,
+        ActivateSubMenu = function(menu)
+            for _,v in pairs(self.MainMenu.UserData.SubMenus) do
+                v.Visible = (v.Handle == menu.Handle)
+            end
+        end
+    }
     self.MenuFile = self.MainMenu:AddMenu(Ext.Loca.GetTranslatedString("File", "File"))
     local openClose = self.MenuFile:AddItem(Ext.Loca.GetTranslatedString("Open/Close", "Open/Close"))
     openClose.OnClick = function(_)
@@ -49,15 +60,12 @@ function ScribeLogger:InitializeLayout()
 
     self.TabECS = self.MainTabBar:AddTabItem("ECS")
     self.LoggerECS = ImguiECSLogger:New{}
-    self.LoggerECS:CreateTab(self.TabECS)
+    self.LoggerECS:CreateTab(self.TabECS, self.MainMenu)
 
     self.TabServerEvents = self.MainTabBar:AddTabItem("Server Events")
     self.LoggerServerEvents = ImguiServerEventLogger:New{}
-    self.LoggerServerEvents:CreateTab(self.TabServerEvents)
+    self.LoggerServerEvents:CreateTab(self.TabServerEvents, self.MainMenu)
+    self.MainMenu.UserData.ActivateSubMenu(self.LoggerECS.SettingsMenu)
 
     self.Ready = true
 end
-MainScribeLogger = nil
-Ext.Events.SessionLoaded:Subscribe(function()
-    MainScribeLogger = ScribeLogger:New()
-end)

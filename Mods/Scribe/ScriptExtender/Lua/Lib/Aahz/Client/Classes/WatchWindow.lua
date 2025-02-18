@@ -4,9 +4,6 @@ local ObjectPath = H.ObjectPath
 local IsArrayOfScalarTypes = H.IsArrayOfScalarTypes
 local IsTypeScalar = H.IsTypeScalar
 
-Scribe = Scribe or {} -- FIXME
-Scribe.AllWindows = Scribe.AllWindows or {}
-
 --- @class WatchWindow
 --- @field Window ExtuiWindow?
 --- @field WatchTable ExtuiTable

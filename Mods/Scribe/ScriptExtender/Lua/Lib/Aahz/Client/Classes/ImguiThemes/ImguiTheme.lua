@@ -134,7 +134,7 @@ local appliedElements = {}
 ---@field ID Guid
 ---@field Name string
 ---@field Colors table<GuiColor, vec4>
----@field ThemeColors table<string, HexColor>
+---@field ThemeColors table<ThemeKey, HexColor>
 ---@field Styles table<GuiStyleVar, number|table>
 ---@field AvailableThemes ImguiTheme[]
 ---@field Apply fun(self:ImguiTheme, element:ExtuiStyledRenderable):ExtuiStyledRenderable
@@ -168,7 +168,7 @@ function ImguiTheme:Init()
     self.Name = self.Name or "Generic"
     self.Colors = self.Colors or {}
     self.Styles = self.Styles or {}
-    SPrint("Created theme: %s (%s)", self.Name, self.ID)
+    -- SPrint("Created theme: %s (%s)", self.Name, self.ID)
     self:UpdateImguiTheme()
 end
 

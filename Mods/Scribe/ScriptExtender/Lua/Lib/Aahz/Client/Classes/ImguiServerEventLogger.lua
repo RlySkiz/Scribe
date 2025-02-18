@@ -1,4 +1,5 @@
 --- @class ImguiServerEventLogger : ImguiLogger
+--- @field SettingsMenu ExtuiMenu
 --- @field Window ExtuiChildWindow
 --- @field Ready boolean
 ImguiServerEventLogger = _Class:Create("ImguiServerEventLogger", "ImguiLogger", {
@@ -42,7 +43,7 @@ function ImguiServerEventLogger:Receive(eventName, eventTable)
 end
 
 
-function ImguiServerEventLogger:CreateTab(tab)
+function ImguiServerEventLogger:CreateTab(tab, mainMenu)
     if self.Window ~= nil then return end -- only create once
     if self.ContainerTab ~= nil then return end
     self.ContainerTab = tab
@@ -51,6 +52,14 @@ function ImguiServerEventLogger:CreateTab(tab)
     self.Window.Size = {-1, -1}
     self:InitializeLayout()
     self:RebuildLog()
+    self.SettingsMenu = mainMenu:AddMenu("Server Event Settings")
+    mainMenu.UserData.RegisterSubMenu(self.SettingsMenu)
+    self.SettingsMenu:AddItem("Placeholder")
+    tab.OnActivate = function()
+        if mainMenu and mainMenu.UserData then
+            mainMenu.UserData.ActivateSubMenu(self.SettingsMenu)
+        end
+    end
 end
 
 function ImguiServerEventLogger:InitializeLayout()
