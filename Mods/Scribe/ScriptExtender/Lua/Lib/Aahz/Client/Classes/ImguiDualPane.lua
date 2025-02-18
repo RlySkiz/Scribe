@@ -302,6 +302,12 @@ function ImguiDualPane:InitializeLayout()
     handleAllButton(selectAllButton, DualPaneChangeType.SelectItem, function(v) return not v end)
     handleAllButton(deselectAllButton, DualPaneChangeType.DeselectItem, function(v) return v end)
 
+    -- Reapply theme changes by redrawing
+    ImguiThemeManager.CurrentThemeChanged:Subscribe(function()
+        self:_RedrawLeftPane()
+        self:_RedrawRightPane()
+    end)
+
     self._containerGroup = container
     self.LeftPane = leftPane
     self.RightPane = rightPane
@@ -322,7 +328,7 @@ function ImguiDualPane:_UpdateCount()
     self._headerTable.ColumnDefs[3].Name = string.format("Selected (%d)", selectedCount)
 end
 ---@private
----@param desc boolean -- Sort descending or not
+---@param desc boolean? -- Sort descending or not
 function ImguiDualPane:_RedrawLeftPane(desc)
     if not self.Ready then return end
     Imgui.ClearChildren(self.LeftPane)
@@ -334,7 +340,7 @@ function ImguiDualPane:_RedrawLeftPane(desc)
     end
 end
 ---@private
----@param desc boolean -- Sort descending or not
+---@param desc boolean? -- Sort descending or not
 function ImguiDualPane:_RedrawRightPane(desc)
     if not self.Ready then return end
     Imgui.ClearChildren(self.RightPane)
@@ -417,7 +423,8 @@ local function addSelectable(self, pane, option, changeType, metaInfo)
     end
     if metaInfo and metaInfo.Highlight then
         local currentHex = ImguiThemeManager.CurrentTheme.ThemeColors.MainText
-        local highlightColor = Helpers.Color.HexToNormalizedRGBA(Helpers.Color.LerpHex(currentHex, "FFFFFF", 0.5), 1.0)
+        local highlightHex = ImguiThemeManager.CurrentTheme.ThemeColors.Highlight
+        local highlightColor = Helpers.Color.HexToNormalizedRGBA(Helpers.Color.LerpHex(currentHex, highlightHex, 50), 1.0)
         selectable:SetColor("Text", highlightColor)
     end
 
@@ -439,7 +446,7 @@ end
 --- Adds new option to left IMGUI pane with the given newOption name
 --- @private
 --- @param newOption string
---- @param metaInfo table<string, any>
+--- @param metaInfo table<string, any>?
 function ImguiDualPane:_AddAvailableOption(newOption, metaInfo)
     if not self.Ready then return end
 
@@ -464,17 +471,20 @@ end
 --- Adds imgui selectable to left IMGUI pane (available unselected options)
 --- @private
 --- @param option string
-function ImguiDualPane:_AddSelectedOption(option)
+--- @param metaInfo table<string, any>?
+function ImguiDualPane:_AddSelectedOption(option, metaInfo)
     if not self.Ready then return end
-    addSelectable(self, self.RightPane, option, DualPaneChangeType.DeselectItem)
+    metaInfo = metaInfo or self._optionMetaCache[option]
+    addSelectable(self, self.RightPane, option, DualPaneChangeType.DeselectItem, metaInfo)
 end
 --- Selects an available (unselected) option, swapping it from the left pane to the right
 --- @private
 --- @param option string
 function ImguiDualPane:_SelectOption(option)
     if not self.Ready then return end
+    local metaInfo = self._optionMetaCache[option]
     -- Add to right
-    addSelectable(self, self.RightPane, option, DualPaneChangeType.DeselectItem)
+    addSelectable(self, self.RightPane, option, DualPaneChangeType.DeselectItem, metaInfo)
     -- Remove from left
     removeSelectable(self.LeftPane, option)
 end
@@ -484,8 +494,9 @@ end
 --- @param option string
 function ImguiDualPane:_DeselectOption(option)
     if not self.Ready then return end
+    local metaInfo = self._optionMetaCache[option]
     -- Add to left
-    addSelectable(self, self.LeftPane, option, DualPaneChangeType.SelectItem)
+    addSelectable(self, self.LeftPane, option, DualPaneChangeType.SelectItem, metaInfo)
     -- Remove from right
     removeSelectable(self.RightPane, option)
 end

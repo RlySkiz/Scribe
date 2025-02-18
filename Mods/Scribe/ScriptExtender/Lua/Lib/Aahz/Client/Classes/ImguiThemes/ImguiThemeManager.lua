@@ -4,6 +4,7 @@ local defaultThemes = require("Lib.Aahz.Client.Classes.ImguiThemes.DefaultColors
 ---@field LocalFileName string
 ---@field AvailableThemes ImguiTheme[]
 ---@field CurrentTheme ImguiTheme
+---@field CurrentThemeChanged Subject # pushes the new theme, when changed
 ---@field QueuedSave integer Ext.Timer handleID for throttling SaveFile() to once every 5 seconds
 ThemeManager = _Class:Create("ThemeManager", nil, {
     LocalFileName = "Scribe/ImguiThemes.json",
@@ -33,6 +34,7 @@ function ThemeManager:Init()
     -- Set current theme
     local themeID = LocalSettings:GetOr(self.AvailableThemes[1].ID, Static.Settings.CurrentTheme) -- TODO save current theme by ID
     local presetTheme = self:GetPreset(nil,themeID)
+    self.CurrentThemeChanged = RX.Subject.Create()
     self.CurrentTheme = presetTheme or self.AvailableThemes[1]
     
     -- When scribe is ready, theme everything
@@ -259,6 +261,7 @@ function ThemeManager:CreateUpdateableDisplay(holder)
                 end
             end
             self.CurrentTheme = imguiTheme
+            self.CurrentThemeChanged:OnNext(imguiTheme)
             LocalSettings:AddOrChange(Static.Settings.CurrentTheme, imguiTheme.ID)
         end
     end
@@ -311,4 +314,5 @@ function ThemeManager:Apply(element)
     end
 end
 
+---@type ThemeManager
 ImguiThemeManager = ThemeManager:New()
