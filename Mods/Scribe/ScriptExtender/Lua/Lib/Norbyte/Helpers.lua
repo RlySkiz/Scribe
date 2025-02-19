@@ -47,6 +47,10 @@ function GetEntityName(e)
         return e.CustomName.Name
     elseif e.DisplayName ~= nil then
         return Ext.Loca.GetTranslatedString(e.DisplayName.NameKey.Handle.Handle)
+    elseif e:HasRawComponent("ls::TerrainObject") then
+        return "TerrainObject"
+    elseif e:HasRawComponent("ecl::Scenery") then
+        return "Scenery"
     elseif e.GameObjectVisual ~= nil then
         return Ext.Template.GetTemplate(e.GameObjectVisual.RootTemplateId).Name
     elseif e.Visual ~= nil and e.Visual.Visual ~= nil and e.Visual.Visual.VisualResource ~= nil then

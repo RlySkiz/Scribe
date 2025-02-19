@@ -13,7 +13,6 @@ local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 --- @field PropertiesView PropertyListView
 --- @field Target EntityHandle?
 --- @field PropertyInterface LocalPropertyInterface
---- @field IsGlobal boolean
 --- @field WindowName string
 --- @field Instances table<EntityHandle,Inspector>
 Inspector = {
@@ -45,7 +44,9 @@ end
 
 function Inspector:Init(instanceId)
     self.Window = self.Window or Imgui.CreateCommonWindow(self.WindowName, {
-        IDContext = instanceId,
+        Size = {850, 600},
+        MinSize = {750, 500},
+        IDContext = "Inspect"..tostring(instanceId),
     })
 
     local layoutTab = self.Window:AddTable("", 2)
@@ -66,48 +67,11 @@ function Inspector:Init(instanceId)
     self.EntityCardContainer = self.LeftContainer:AddGroup("")
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
-    -- self.PropertiesView.OnEntityClick = function (path) -- FIXME borken, can separate this out
-    --     -- RPrint("Clicked OnEntityClick")
-    --     local i = self:GetOrCreate(path, self.PropertyInterface)
-    --     i:ExpandNode(i.TreeView)
-    --     i.TreeView.DefaultOpen = true
-    --     i.Window:SetFocus()
-    -- end
 
     self.Window.OnClose = function (e)
-        if not self.IsGlobal then
-            self:UpdateInspectTarget(nil)
-            self.Window:Destroy()
-        end
+        self:UpdateInspectTarget(nil)
+        self.Window:Destroy()
     end
-end
-
-
-function Inspector:MakeGlobal()
-    self.IsGlobal = true
-    self.Window.Closeable = false
-    self.TargetGroup.Visible = true
-    Ext.Events.Tick:Subscribe(function ()
-        local picker = Ext.UI.GetPickingHelper(1)
-        if picker == nil then return end
-
-        local target = picker.Inner.Inner[1].GameObject
-        local name = ""
-
-        if target ~= nil then
-            name = GetEntityName(target) or "Unnamed Entity"
-        end
-
-        self.TargetLabel.Label = name
-    end)
-
-    Ext.Events.MouseButtonInput:Subscribe(function (e)
-        if e.Button == 2 and e.Pressed then
-            local picker = Ext.UI.GetPickingHelper(1)
-            local target = picker.Inner.Inner[1].GameObject
-            self:UpdateInspectTarget(target)
-        end
-    end)
 end
 
 
@@ -172,51 +136,15 @@ function Inspector:UpdateInspectTarget(target)
         self.Target = targetEntity
         self.TargetId = target
         self.Instances[targetEntity] = self
-        -- self:GenerateEntityCard(targetEntity)
+        Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity)
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
         self.TreeView.IDContext = Ext.Math.Random()
         entityName = (GetEntityName(targetEntity) or tostring(targetEntity))
+        self.PropertiesView:Clear()
     end
     self.Window.Label = self.WindowName..(entityName and string.format(" (%s)", entityName) or "")
-end
-
----Generates an entity card for the left-top inspector container
----@param entity EntityHandle
-function Inspector:GenerateEntityCard(entity)
-    local c = self.EntityCardContainer
-    c:AddSeparatorText("Entity Info:")
-    local dumpButton = c:AddButton("Dump")
-    c:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown")).SameLine = true
-    dumpButton.OnClick = function()
-        Helpers.Dump(entity)
-    end
-
-    c:AddText("Uuid:")
-    local uuidText = c:AddInputText("", entity.Uuid and entity.Uuid.EntityUuid or "None")
-    uuidText.SizeHint = {-1, 32}
-    uuidText.SameLine = true
-    uuidText.ReadOnly = true
-    if entity.GameObjectVisual then
-        if entity.GameObjectVisual.Icon and not entity.ClientCharacter and not entity.ServerCharacter then
-            -- Sends a console warning if it can't find icon, and no portraits, boo.
-            c:AddImage(entity.GameObjectVisual.Icon, {64, 64}):Tooltip():AddText("\t\t"..tostring(entity.GameObjectVisual.Icon))
-        end
-    end
-    if entity.GameObjectVisual then
-        c:AddText("RootTemplateId:")
-        local templateUuidText = c:AddInputText("", entity.GameObjectVisual and entity.GameObjectVisual.RootTemplateId or "None")
-        templateUuidText.SizeHint = {-1, 32}
-        templateUuidText.SameLine = true
-        templateUuidText.ReadOnly = true
-    end
-    local raceResource = entity.Race and Ext.StaticData.Get(entity.Race.Race, "Race") --[[@as ResourceRace]]
-    if raceResource then
-        c:AddText(string.format("Race: %s", raceResource.DisplayName:Get()))
-    end
-    -- TODO Maybe: Tag component, Transform, UserReservedFor, marker components
-    c:AddSeparatorText("Entity Hierarchy:")
 end
 
 return Inspector

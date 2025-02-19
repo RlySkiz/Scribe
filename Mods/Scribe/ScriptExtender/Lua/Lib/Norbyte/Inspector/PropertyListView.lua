@@ -9,7 +9,6 @@ local PropertyEditorFactory = require("Lib.Norbyte.Inspector.PropertyEditor")
 --- @field PropertyInterface LocalPropertyInterface
 --- @field Parent ExtuiTreeParent
 --- @field Target ObjectPath
---- @field OnEntityClick fun(path:ObjectPath) -- FIXME
 PropertyListView = {
 }
 
@@ -21,7 +20,6 @@ function PropertyListView:New(intf, parent)
         Target = nil,
         Parent = parent,
         PropertyInterface = intf,
-        OnEntityClick = nil
 	}
 	setmetatable(o, self)
     self.__index = self
@@ -48,6 +46,18 @@ function PropertyListView:Init()
     self.PropertiesContainer.Visible = false
 end
 
+function PropertyListView:Clear()
+    -- Clear Meta Info
+    while #self.MetaInfo.Children > 0 do
+        self.MetaInfo:RemoveChild(self.MetaInfo.Children[#self.MetaInfo.Children])
+    end
+
+    -- Clear Properties
+    while #self.PropertiesPane.Children > 0 do
+        self.PropertiesPane:RemoveChild(self.PropertiesPane.Children[#self.PropertiesPane.Children])
+    end
+end
+
 
 ---@param path ObjectPath
 ---@param holder ExtuiTreeParent
@@ -59,7 +69,7 @@ function PropertyListView:AddPropertyEditor(path, holder, key, value, propInfo)
         local setter = function (value, vKey, vPath)
             self.PropertyInterface:SetProperty(vPath or path, vKey or key, value)
         end
-        PropertyEditorFactory:CreateEditor(holder, path, key, value, propInfo, setter, self.OnEntityClick)
+        PropertyEditorFactory:CreateEditor(holder, path, key, value, propInfo, setter)
     else
         holder:AddText(tostring(value))
     end
@@ -129,16 +139,7 @@ function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
 end
 
 function PropertyListView:Refresh()
-
-    -- Clear Meta Info
-    while #self.MetaInfo.Children > 0 do
-        self.MetaInfo:RemoveChild(self.MetaInfo.Children[#self.MetaInfo.Children])
-    end
-
-    -- Clear Properties
-    while #self.PropertiesPane.Children > 0 do
-        self.PropertiesPane:RemoveChild(self.PropertiesPane.Children[#self.PropertiesPane.Children])
-    end
+    self:Clear()
 
     if not self.Target then return end
 

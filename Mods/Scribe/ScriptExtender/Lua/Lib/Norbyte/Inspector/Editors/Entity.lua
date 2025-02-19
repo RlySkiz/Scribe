@@ -2,14 +2,13 @@ local H = Ext.Require("Lib/Norbyte/Helpers.lua")
 
 --- @class EntityEditor : PropertyEditorDefinition
 local EntityEditor = {
-    OnEntityClick = nil
 }
 
 function EntityEditor:Supports(type)
     return type.TypeName == "EntityHandle" or type.TypeName == "EntityRef"
 end
 
-function EntityEditor:Create(holder, path, key, value, type, setter, onEntityClick)
+function EntityEditor:Create(holder, path, key, value, type, setter)
     local name
     if value == nil then
         name = "(No entity)"
@@ -21,12 +20,14 @@ function EntityEditor:Create(holder, path, key, value, type, setter, onEntityCli
     inspectBtn.ItemWidth = -5
     inspectBtn.UserData = { Target = value }
     inspectBtn.IDContext = tostring(value)
-    self.OnEntityClick = onEntityClick
     inspectBtn.OnClick = function (btn)
         if btn.UserData.Target ~= nil then
-            if self.OnEntityClick then
-                self.OnEntityClick(btn.UserData.Target)
-            end
+            local i = Scribe:GetOrCreateInspector(value, LocalPropertyInterface)
+            i.Window.Open = true
+            i.Window.Visible = true
+            i:ExpandNode(i.TreeView)
+            i.TreeView.DefaultOpen = true
+            i.Window:SetFocus()
         end
     end
 end

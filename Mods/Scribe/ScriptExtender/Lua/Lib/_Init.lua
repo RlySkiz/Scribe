@@ -32,10 +32,9 @@ GuidLookup = nil
 FirstTime:Subscribe(function(v)
     if v and not GuidLookup then
         GuidLookup = Ext.Require(ModuleUUID, "Lib/Aahz/Shared/Classes/GuidLookup.lua")
-        GuidLookup._Initialize()
     end
 end)
 
-Inspector = Ext.Require("Lib/Norbyte/Inspector/UI.lua")
+Inspector = Ext.Require("Lib/Norbyte/Inspector/Inspector.lua")
 LocalPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/LocalPropertyInterface.lua")
 NetworkPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/NetworkPropertyInterface.lua")

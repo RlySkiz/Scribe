@@ -1,5 +1,6 @@
 Helpers = Helpers or {}
 Helpers.Format = Helpers.Format or {}
+Helpers.Math = Helpers.Math or {}
 local H = Ext.Require("Lib/Norbyte/Helpers.lua")
 local GetEntityName = H.GetEntityName
 
@@ -30,6 +31,31 @@ function Helpers.Format.CaseInsensitiveSearch(str1, str2)
     return result ~= nil
 end
 
+--- Converts a quaternion [x,y,z,w] to Euler angles [x,y,z] (roll, pitch, yaw).
+---@param quat vec4
+---@return table
+function Helpers.Math.QuatToEuler(quat)
+    local x, y, z, w = quat[1], quat[2], quat[3], quat[4]
+
+    -- Roll (X)
+    local t0 = 2.0 * (w * x + y * z)
+    local t1 = 1.0 - 2.0 * (x * x + y * y)
+    local roll = math.deg(math.atan(t0, t1))
+
+    -- Pitch (Y)
+    local t2 = 2.0 * (w * y - z * x)
+    t2 = t2 > 1.0 and 1.0 or t2
+    t2 = t2 < -1.0 and -1.0 or t2
+    local pitch = math.deg(math.asin(t2))
+
+    -- Yaw (Z)
+    local t3 = 2.0 * (w * z + x * y)
+    local t4 = 1.0 - 2.0 * (y * y + z * z)
+    local yaw = math.deg(math.atan(t3, t4))
+
+    return {roll, pitch, yaw}
+end
+
 --- Retrieves the value of a specified property from an object or returns a default value if the property doesn't exist.
 -- @param obj           The object from which to retrieve the property value.
 -- @param propertyName  The name of the property to retrieve.
@@ -47,20 +73,27 @@ end
 --- @param e EntityHandle
 function Helpers.GetEntityName(e)
     if e == nil then return nil end
+    if Ext.Types.GetValueType(e) ~= "Entity" then return nil end
 
     if e.CustomName ~= nil then
         return e.CustomName.Name
     elseif e.DisplayName ~= nil then
         return Ext.Loca.GetTranslatedString(e.DisplayName.NameKey.Handle.Handle)
+    elseif e:HasRawComponent("ls::TerrainObject") then
+        return "Terrain"
     elseif e.GameObjectVisual ~= nil then
         return Ext.Template.GetTemplate(e.GameObjectVisual.RootTemplateId).Name
     elseif e.Visual ~= nil and e.Visual.Visual ~= nil and e.Visual.Visual.VisualResource ~= nil then
-        local name
+        local name = ""
+        if e:HasRawComponent("ecl::Scenery") then
+            name = name .. "(Scenery)"
+        end
+        local visName = "Unknown"
         -- Jank to get last part
         for part in string.gmatch(e.Visual.Visual.VisualResource.Template, "[a-zA-Z0-9_.]+") do
-            name = part
+            visName = part
         end
-        return name
+        return name..visName
     elseif e.SpellCastState ~= nil then
         return "Spell Cast " .. e.SpellCastState.SpellId.Prototype
     elseif e.ProgressionMeta ~= nil then
@@ -81,6 +114,62 @@ function Helpers.GetEntityName(e)
         return e.Uuid.EntityUuid
     else
         return nil
+    end
+end
+
+--- Generates an IMGUI entity card for the given entity
+---@param container ExtuiTreeParent
+---@param entity EntityHandle
+function Helpers.GenerateEntityCard(container, entity)
+    container:AddSeparatorText("Entity Info:")
+    local dumpButton = container:AddButton("Dump")
+    container:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown")).SameLine = true
+    dumpButton.OnClick = function()
+        Helpers.Dump(entity)
+    end
+
+    container:AddText("Uuid:")
+    local uuidText = container:AddInputText("", entity.Uuid and entity.Uuid.EntityUuid or "None")
+    uuidText.SizeHint = {-1, 32}
+    uuidText.SameLine = true
+    uuidText.ReadOnly = true
+    if entity.Transform then
+        local position = string.format("<%.2f, %.2f, %.2f>", table.unpack(entity.Transform.Transform.Translate))
+        local rotation = string.format("(%.2f, %.2f, %.2f)", table.unpack(Helpers.Math.QuatToEuler(entity.Transform.Transform.RotationQuat)))
+        container:AddText(string.format("Position: %s\nRotation: %s", position, rotation))
+    end
+
+    if entity.GameObjectVisual then
+        if entity.GameObjectVisual.Icon and not entity.ClientCharacter and not entity.ServerCharacter then
+            -- Sends a console warning if it can't find icon, and no portraits, boo.
+            container:AddImage(entity.GameObjectVisual.Icon, {64, 64}):Tooltip():AddText("\t\t"..tostring(entity.GameObjectVisual.Icon))
+        end
+    end
+    if entity.GameObjectVisual then
+        container:AddText("RootTemplateId:")
+        local templateUuidText = container:AddInputText("", entity.GameObjectVisual and entity.GameObjectVisual.RootTemplateId or "None")
+        templateUuidText.SizeHint = {-1, 32}
+        templateUuidText.SameLine = true
+        templateUuidText.ReadOnly = true
+    end
+    local raceResource = entity.Race and Ext.StaticData.Get(entity.Race.Race, "Race") --[[@as ResourceRace]]
+    if raceResource then
+        container:AddText(string.format("Race: %s", raceResource.DisplayName:Get()))
+    end
+    -- TODO Maybe: Tag component, Transform, UserReservedFor, marker components
+    container:AddSeparatorText("Entity Hierarchy:")
+    if not table.isEmpty(entity:GetAllComponentNames(false)) then
+        local rawPopup = container:AddPopup("RawComponentsDump")
+        local rawDumpButton = container:AddButton("[Raw]")
+        rawDumpButton.SameLine = true
+        rawDumpButton.OnClick = function()
+            Imgui.ClearChildren(rawPopup)
+            local rawNames = entity:GetAllComponentNames(false)
+            local rawNameDump = table.concat(rawNames, "\n")
+            rawPopup:AddSeparatorText("Raw Components")
+            rawPopup:AddText(rawNameDump)
+            rawPopup:Open()
+        end
     end
 end
 

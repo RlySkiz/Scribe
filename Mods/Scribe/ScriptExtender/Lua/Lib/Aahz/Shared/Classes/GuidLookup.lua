@@ -51,7 +51,6 @@ function GuidLookup._Initialize()
     end
     GuidLookup.Ready = true
 end
+GuidLookup._Initialize()
 
-Ext.Events.ResetCompleted:Subscribe(GuidLookup._Initialize)
-Ext.Events.SessionLoaded:Subscribe(GuidLookup._Initialize)
 return GuidLookup
