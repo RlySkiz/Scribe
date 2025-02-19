@@ -142,7 +142,7 @@ function EntityLogEntry:Draw(logTable, verbose)
     entityPopup:AddSeparatorText(entryName)
     local inspectButton = entityPopup:AddButton("Inspect")
     inspectButton.OnClick = function(_)
-        Inspector:GetOrCreate(self.Entity, LocalPropertyInterface)
+        Scribe:GetOrCreateInspector(self.Entity, LocalPropertyInterface)
     end
     selectable.OnClick = function(_)
         selectable.Selected = false

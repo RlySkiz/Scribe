@@ -46,6 +46,7 @@ function Inspector:Init(instanceId)
     self.Window = self.Window or Imgui.CreateCommonWindow(self.WindowName, {
         Size = {850, 600},
         MinSize = {750, 500},
+        Open = true,
         IDContext = "Inspect"..tostring(instanceId),
     })
 

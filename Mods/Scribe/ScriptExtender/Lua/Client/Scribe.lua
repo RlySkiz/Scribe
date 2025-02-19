@@ -138,6 +138,7 @@ function Scribe:GetOrCreateInspector(entity, intf, o)
     end
 
     local i = Inspector:New(intf, o)
+    self.Inspectors[entity] = i
     i:Init(tostring(entity))
     i:UpdateInspectTarget(entity)
     ImguiThemeManager:Apply(i.Window)
