@@ -69,6 +69,7 @@ function Scribe:Initialize()
         -- self:UpdateInspectTarget(nil)
     end
 
+    Scribe.PropertyWatch = require("Lib.Aahz.Client.Classes.WatchWindow")
     Scribe.SettingsWindow = Scribe.GenerateSettingsWindow()
     Scribe:UpdateInspectTarget(_C() --[[@as EntityHandle]])
 
@@ -82,8 +83,11 @@ function Scribe:CreateMenus()
     -- Create main menu
     local windowMainMenu = self.Window:AddMainMenu()
     local fileMenu = windowMainMenu:AddMenu(Ext.Loca.GetTranslatedString("h6d62ce733f1349ed8ca2d41e743dd9af2656", "File"))
+    local toolMenu = windowMainMenu:AddMenu(Ext.Loca.GetTranslatedString("ha64ecf45799246e88d09006f7b1de9154722", "Tools"))
+    local propertyWatch = toolMenu:AddItem(Ext.Loca.GetTranslatedString("hd0460c85bbf3428b8503059f4ee8903fa413", "Property Watch"))
+    local openCloseLogger = toolMenu:AddItem(Ext.Loca.GetTranslatedString("h0a751a9f868d4b378b2e2616dca4672f4120", "Loggers"))
     local settingsMenu = fileMenu:AddItem(Ext.Loca.GetTranslatedString("hca001b2e6e7a49e9b152735a3a799083281g", "Settings"))
-    local openCloseLogger = fileMenu:AddItem(Ext.Loca.GetTranslatedString("h0a751a9f868d4b378b2e2616dca4672f4120", "Open/Close Logger"))
+    local closeButton = fileMenu:AddItem(Ext.Loca.GetTranslatedString("hdf8f0e06268b4de49697409538636d34gc7c", "Close"))
 
     -- Add Debug Reset button to right/end of menubar
     if Ext.Debug.IsDeveloperMode() then
@@ -94,6 +98,11 @@ function Scribe:CreateMenus()
             resetButton.OnClick = function() Ext.Debug.Reset() end
         end)
     end
+    propertyWatch.OnClick = function ()
+        if Scribe and Scribe.PropertyWatch ~= nil then
+            Scribe.PropertyWatch.Window.Open = not Scribe.PropertyWatch.Window.Open
+        end
+    end
     openCloseLogger.OnClick = function()
         if self.ScribeLogger == nil then return end
         self.ScribeLogger.Window.Open = not self.ScribeLogger.Window.Open
@@ -102,6 +111,9 @@ function Scribe:CreateMenus()
         if Scribe and Scribe.SettingsWindow ~= nil then
             Scribe.SettingsWindow.Open = not Scribe.SettingsWindow.Open
         end
+    end
+    closeButton.OnClick = function ()
+        self.Window.Open = false
     end
 end
 

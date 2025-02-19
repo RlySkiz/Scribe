@@ -16,7 +16,7 @@ function ScribeLogger:Init()
 end
 function ScribeLogger:CreateWindow()
     if self.Window ~= nil then return end -- only create once
-    self.Window = Imgui.CreateCommonWindow("Scribe Log", {
+    self.Window = Imgui.CreateCommonWindow("Scribe Log (WIP)", {
         IDContext = "Scribe_Log",
         -- defaults
         -- Size = {600, 550},

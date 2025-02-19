@@ -27,15 +27,12 @@ local function openCloseScribeChanged()
     -- end
 end
 
--- TODO move this to cleaner place
----@type WatchWindow?
-WatchWindow = nil
 local function openCloseWatchWindow()
     if Scribe and Scribe.FirstTimeWindow then
         Scribe:OpenClose()
-    elseif WatchWindow and WatchWindow.Window then
-        WatchWindow.Window.Open = not WatchWindow.Window.Open
-        WatchWindow.Window.Visible = WatchWindow.Window.Open
+    elseif Scribe.PropertyWatch then
+        Scribe.PropertyWatch.Window.Open = not Scribe.PropertyWatch.Window.Open
+        Scribe.PropertyWatch.Window.Visible = Scribe.PropertyWatch.Window.Open
     end
 end
 
@@ -69,7 +66,6 @@ function Scribe.GenerateSettingsWindow()
     keybindScribe = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
         "OpenCloseScribe", "T", {"Shift"}, openCloseScribe, openCloseScribeChanged)
 
-    WatchWindow = require("Lib.Aahz.Client.Classes.WatchWindow")
     keybindingsGroup:AddText("Open Watch Window") -- Testing
     keybindWatchWindow = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
         "OpenCloseWatchWindow", "Y", { "Alt"}, openCloseWatchWindow)
