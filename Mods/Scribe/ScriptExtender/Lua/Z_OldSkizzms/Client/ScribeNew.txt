@@ -101,7 +101,7 @@ end)
 
 local function createScribeMCMTab(treeParent)
     treeParent:AddDummy(20,1)
-    local openButton = treeParent:AddButton(Ext.Loca.GetTranslatedString("h83db5cf7gfce3g475egb16fg37d5f05005e3", "Open/Close"))
+    local openButton = treeParent:AddButton(Ext.Loca.GetTranslatedString("h9727f426570b4fe39ae10934eb6510996b0d", "Open/Close"))
     openButton.OnClick = function(b)
         if w.Open == true then
             w.Open = false 

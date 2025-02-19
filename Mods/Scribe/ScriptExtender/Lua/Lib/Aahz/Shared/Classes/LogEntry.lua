@@ -109,3 +109,73 @@ function ImguiLogEntry:Draw(logTable, verbose)
     --     lastCell:Activate() -- can't get this to scroll down
     -- end
 end
+---@class EntityLogEntry : LogEntry
+---@field Entity EntityHandle
+---@field Components string[]
+EntityLogEntry = _Class:Create("EntityLogEntry", "LogEntry", {
+    Entity = nil,
+    Components = {},
+})
+
+---@param logTable ExtuiTable
+---@param verbose nil|boolean verbose/compact
+function EntityLogEntry:Draw(logTable, verbose)
+    local colorCheck = {
+        ["+"] = Imgui.Colors.Olive,
+        ["-"] = Imgui.Colors.DarkOrange,
+        ["="] = Imgui.Colors.BG3Green,
+        ["!"] = Imgui.Colors.BG3Blue,
+    }
+
+    local entryName = tostring(self:GetEntry())
+    local row = logTable:AddRow()
+    -- 1. TimeStamp
+    row:AddCell():AddText(tostring(self.TimeStamp))
+
+    -- 2. Entity/Change column
+    local changeCell = row:AddCell()
+    local selectable = changeCell:AddSelectable("")
+    selectable.Label = tostring(self:GetCategory())
+    selectable.SpanAllColumns = true
+    selectable.DontClosePopups = true
+    local entityPopup = changeCell:AddPopup("")
+    entityPopup:AddSeparatorText(entryName)
+    local inspectButton = entityPopup:AddButton("Inspect")
+    inspectButton.OnClick = function(_)
+        Scribe:GetOrCreateInspector(self.Entity, LocalPropertyInterface)
+    end
+    selectable.OnClick = function(_)
+        selectable.Selected = false
+        entityPopup:Open()
+    end
+
+    -- 3. Entry Text
+    local entryCell = row:AddCell()
+    local entryText = entryCell:AddText(entryName)
+    if entryName:sub(1, 8) == "Entity (" then
+        entryText:SetColor("Text", Imgui.Colors.Tan)
+    else
+        entryText:SetColor("Text", Imgui.Colors.Azure)
+    end
+
+    local function addBulletedSubEntries(el)
+        if not table.isEmpty(self._SubEntries) then
+            for _, subentry in ipairs(self._SubEntries) do
+                local check = subentry:sub(1, 1)
+                local bulletText = el:AddBulletText(tostring(subentry))
+                if colorCheck[check] ~= nil then
+                    bulletText:SetColor("Text", colorCheck[check])
+                end
+            end
+        end
+        return el
+    end
+    -- Move to a tooltip, or a tree? Hmm
+    if verbose then -- default to compact, ie- only show subentries in tooltip?
+        addBulletedSubEntries(entryCell)
+    end
+    Imgui.CreateSimpleTooltip(entryText:Tooltip(), function(tt)
+        tt:AddSeparatorText(entryName)
+        addBulletedSubEntries(tt)
+    end)
+end

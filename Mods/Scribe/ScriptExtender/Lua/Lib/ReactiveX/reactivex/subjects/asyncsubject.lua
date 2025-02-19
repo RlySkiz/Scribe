@@ -12,11 +12,11 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 --- @field observers Observer[]
 local AsyncSubject = setmetatable({}, Observable)
 AsyncSubject.__index = AsyncSubject
-AsyncSubject.__tostring = util.constant('AsyncSubject')
+AsyncSubject.__tostring = util.Constant('AsyncSubject')
 
 --- Creates a new AsyncSubject.
--- @returns {AsyncSubject}
-function AsyncSubject.create()
+--- @return AsyncSubject
+function AsyncSubject.Create()
     local self = {
         observers = {},
         stopped = false,
@@ -28,30 +28,31 @@ function AsyncSubject.create()
 end
 
 --- Creates a new Observer and attaches it to the AsyncSubject.
----@param onNext function|Observer - A function called when the AsyncSubject produces a value or an existing Observer to attach to the AsyncSubject.
----@param onError function? - Called when the AsyncSubject terminates due to an error.
----@param onCompleted function? - Called when the AsyncSubject completes normally.
-function AsyncSubject:subscribe(onNext, onError, onCompleted)
+--- @param observerOrNext function|Observer - Called when the AsyncSubject produces a value.
+--- @param onError function? - Called when the AsyncSubject terminates due to an error.
+--- @param onCompleted function? - Called when the AsyncSubject completes normally.
+--- @return Subscription|nil
+function AsyncSubject:Subscribe(observerOrNext, onError, onCompleted)
     local observer --[[@as Observer]]
 
-    if util.isa(onNext, Observer) then
-        observer = onNext
+    if util.IsA(observerOrNext, Observer) then
+        observer = observerOrNext
     else
-        observer = Observer.create(onNext, onError, onCompleted)
+        observer = Observer.Create(observerOrNext, onError, onCompleted)
     end
 
     if self.value then
-        observer:onNext(util.unpack(self.value))
-        observer:onCompleted()
+        observer:OnNext(util.Unpack(self.value))
+        observer:OnCompleted()
         return
     elseif self.errorMessage then
-        observer:onError(self.errorMessage)
+        observer:OnError(self.errorMessage)
         return
     end
 
     table.insert(self.observers, observer)
 
-    return Subscription.create(function()
+    return Subscription.Create(function()
         for i = 1, #self.observers do
             if self.observers[i] == observer then
                 table.remove(self.observers, i)
@@ -61,44 +62,44 @@ function AsyncSubject:subscribe(onNext, onError, onCompleted)
     end)
 end
 
---- Pushes zero or more values to the AsyncSubject.
----@generic T
----@param ... T values *...
-function AsyncSubject:onNext(...)
+--- Pushes zero or more values to the AsyncSubject. They will be broadcasted to all Observers when the AsyncSubject completes.
+--- @generic T : any
+--- @param ... T
+function AsyncSubject:OnNext(...)
     if not self.stopped then
-        self.value = util.pack(...)
+        self.value = util.Pack(...)
     end
 end
 
---- Signal to all Observers that an error has occurred.
+--- Notify the AsyncSubject that an error has occurred.
 ---@param message string - A string describing what went wrong.
-function AsyncSubject:onError(message)
+function AsyncSubject:OnError(message)
     if not self.stopped then
         self.errorMessage = message
 
         for i = 1, #self.observers do
-            self.observers[i]:onError(self.errorMessage)
+            self.observers[i]:OnError(self.errorMessage)
         end
 
         self.stopped = true
     end
 end
 
---- Signal to all Observers that the AsyncSubject will not produce any more values.
-function AsyncSubject:onCompleted()
+--- Notify the AsyncSubject that the sequence has completed and will produce no more values.
+function AsyncSubject:OnCompleted()
     if not self.stopped then
         for i = 1, #self.observers do
             if self.value then
-                self.observers[i]:onNext(util.unpack(self.value))
+                self.observers[i]:OnNext(util.Unpack(self.value))
             end
 
-            self.observers[i]:onCompleted()
+            self.observers[i]:OnCompleted()
         end
 
         self.stopped = true
     end
 end
 
-AsyncSubject.__call = AsyncSubject.onNext
+AsyncSubject.__call = AsyncSubject.OnNext
 
 return AsyncSubject

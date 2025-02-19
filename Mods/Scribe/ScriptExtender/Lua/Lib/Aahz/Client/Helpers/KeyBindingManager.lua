@@ -24,7 +24,7 @@ function KeybindingManager:Bind(keybind)
     if not exists then
         self.Keybindings[keybind.ScanCode] = {}
     end
-    local id = Helpers.Format:CreateUUID()
+    local id = Helpers.Format.CreateUUID()
     keybind.Identifier = id
     self.Keybindings[keybind.ScanCode][id] = keybind
     return keybind,id

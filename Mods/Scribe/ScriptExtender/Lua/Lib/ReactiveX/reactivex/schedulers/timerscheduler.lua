@@ -7,11 +7,11 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 --- @class TimerScheduler
 local TimerScheduler = {}
 TimerScheduler.__index = TimerScheduler
-TimerScheduler.__tostring = util.constant('TimeoutScheduler')
+TimerScheduler.__tostring = util.Constant('TimeoutScheduler')
 
 --- Creates a new TimeoutScheduler.
 --- @return TimerScheduler
-function TimerScheduler.create()
+function TimerScheduler.Create()
     return setmetatable({}, TimerScheduler)
 end
 
@@ -20,10 +20,10 @@ end
 --- @param delay number? 0 - The delay, in milliseconds.
 --- @param repeatEvery number? - Optional repeat frequency
 --- @return Subscription
-function TimerScheduler:schedule(action, delay, repeatEvery)
+function TimerScheduler:Schedule(action, delay, repeatEvery)
     local handle
     handle = Ext.Timer.WaitFor(delay or 0, action, repeatEvery)
-    return Subscription.create(function()
+    return Subscription.Create(function()
         Ext.Timer.Cancel(handle)
     end)
 end

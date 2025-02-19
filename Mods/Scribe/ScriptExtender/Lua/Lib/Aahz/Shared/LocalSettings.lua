@@ -89,3 +89,30 @@ function LocalSettings:Remove(key)
     self.Data[key] = nil
     if self.SaveImmediately then self:SaveToFile() end
 end
+
+--- For caching things at runtime
+---@class Cache :LocalSettings
+Cache = _Class:Create("Cache", "LocalSettings", {
+    SaveImmediately = true,
+    FileName = "ScribeCache",
+    Data = {},
+})
+
+---@enum CacheData
+CacheData = {
+    RuntimeComponentNames = "RuntimeComponentNames",
+    UnmappedComponentNames = "UnmappedComponentNames",
+}
+
+local function GenerateCache()
+    local allTypes = Ext.Types.GetAllTypes()
+    local componentNames = {}
+    for _,tn in ipairs(allTypes) do
+        local t = Ext.Types.GetTypeInfo(tn)
+        if t.ParentType and t.ParentType.TypeName == "BaseComponent" then
+            componentNames[t.TypeName] = t.ComponentName
+        end
+    end
+    Cache:AddOrChange(CacheData.RuntimeComponentNames, componentNames)
+end
+GenerateCache()

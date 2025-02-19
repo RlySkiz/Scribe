@@ -26,14 +26,21 @@
 --- @field Ready boolean
 --- @field ContainerTab ExtuiTabItem|nil
 --- @field Window ExtuiChildWindow
---- @field MainMenu ExtuiMenu
+--- @field SettingsMenu ExtuiMenu
 --- @field MenuFile ExtuiMenu
---- @field StartButton ExtuiButton
+--- @field StartStopButton ExtuiButton
 --- @field StopButton ExtuiButton
 --- @field ClearButton ExtuiButton
 --- @field FrameCounter ExtuiText
 --- @field EventCounter ExtuiText
 --- @field PrintToConsoleCheckbox ExtuiCheckbox
+--- @field WatchComponentWindow ExtuiWindow
+--- @field WatchDualPane ImguiDualPane
+--- @field WatchedComponents table<string,boolean>
+--- @field ApplyWatchFilters boolean
+--- @field AutoInspect boolean
+--- @field AutoDump boolean
+--- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
     FrameNo = 1,
@@ -58,34 +65,50 @@ ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     ExcludeInterrupts = true,
     ExcludePassives = true,
     ExcludeInventories = true,
+    ApplyWatchFilters = false,
+    AutoInspect = false,
+    AutoDump = false,
 })
 
 local private = {
 	SpamComponents = {},
 	StatusComponents = {},
+    KnownComponents = {},
+    UnknownComponents = {},
 }
 function ImguiECSLogger:Init()
     self.Ready = false
 end
-function ImguiECSLogger:CreateTab(tab)
+
+---@param tab ExtuiTabItem
+---@param mainMenu ExtuiMenu
+function ImguiECSLogger:CreateTab(tab, mainMenu)
     if self.Window ~= nil then return end -- only create once
     if self.ContainerTab ~= nil then return end
     self.ContainerTab = tab
     self.Window = self.ContainerTab:AddChildWindow("Scribe_ECSLogger")
     self.Window.IDContext = "Scribe_ECSLogger"
-    self.Window.Size = {610,625}
-    Imgui.NewStyling(self.Window)
+    self.Window.Size = {-1,-1}
     self.Window:SetStyle("FrameRounding", 5) -- soft square
+
+    self.SettingsMenu = mainMenu:AddMenu("ECS Settings")
+    mainMenu.UserData.RegisterSubMenu(self.SettingsMenu)
+    -- self.SettingsMenu:AddItem("Placeholder")
+
     self:InitializeLayout()
+    self:CreateScribeThrobber()
+    tab.OnActivate = function()
+        if mainMenu and mainMenu.UserData then
+            mainMenu.UserData.ActivateSubMenu(self.SettingsMenu)
+        end
+    end
 end
 
 function ImguiECSLogger:InitializeLayout()
     if self.Ready then return end -- only initialize once
-    local start = self.Window:AddButton("Start")
-    local stop = self.Window:AddButton("Stop")
+    local startstop = self.Window:AddButton("Start/Stop")
     local clear = self.Window:AddButton("Clear")
     local frameCounter = self.Window:AddText("Frame: 0")
-    stop.SameLine = true
     clear.SameLine = true
     frameCounter.SameLine = true
     frameCounter:SetColor("Text", Imgui.Colors.Tan)
@@ -94,29 +117,29 @@ function ImguiECSLogger:InitializeLayout()
     eventCounter.SameLine = true
     eventCounter:SetColor("Text", Imgui.Colors.Tan)
 
-    local printToConsoleText = self.Window:AddText("PrintToConsole?")
-    printToConsoleText.SameLine = true
-    local printToConsoleChk = self.Window:AddCheckbox("", self.PrintChangesToConsole)
+    local printToConsoleChk = self.SettingsMenu:AddCheckbox("Print to Console", self.PrintChangesToConsole)
     printToConsoleChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
     printToConsoleChk.IDContext = "Scribe_ECSLoggerPrintToConsoleChk"
-    printToConsoleChk.SameLine = true
-
-    Imgui.CreateSimpleTooltip(printToConsoleChk:Tooltip(), function(tt)
-        tt:AddText("Log entity changes to console as well.")
-        return tt
-    end)
+    printToConsoleChk:Tooltip():AddText("\t".."Log entity changes to console as well.")
 
     printToConsoleChk.OnChange = function(c)
         self.PrintChangesToConsole = c.Checked
     end
 
+    self:CreateComponentWatchWindow()
+    local applyCompChkText = self.Window:AddText("Apply Watch Filters?")
+    applyCompChkText.SameLine = true
+    local applyCompChk = self.Window:AddCheckbox("", false)
+    applyCompChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    applyCompChk.SameLine = true
+    applyCompChk:Tooltip():AddText("\t"..("Uses the selected components to filter the entity log."))
+    applyCompChk.OnChange = function(c)
+        self.ApplyWatchFilters = true
+        self:RebuildLog()
+    end
+
     local childWin = self.Window:AddChildWindow("Scribe_ECSLoggerChildWin")
-    -- childWin.AutoResizeY = true
-    -- childWin.AutoResizeX = true
-    -- childWin.ResizeY = true
-    -- childWin.AlwaysVerticalScrollbar = true
-    -- childWin.AlwaysUseWindowPadding = true
-    childWin.Size = {600, 560}
+    childWin.Size = {-1, -1}
 
     local logTable = childWin:AddTable("Scribe_ECSLoggerTable", 3)
     self.LogTable = logTable
@@ -151,20 +174,19 @@ function ImguiECSLogger:InitializeLayout()
     logTable.HighlightHoveredColumn = true
     logTable.BordersInner = true
     self.LogChildWindow = childWin
-    self.StartButton = start
-    self.StopButton = stop
+    self.StartStopButton = startstop
     self.ClearButton = clear
     self.FrameCounter = frameCounter
     self.EventCounter = eventCounter
     self.Ready = true
 
     -- mockup
-    start.OnClick = function(b)
-        self:RebuildLog()
-        self:StartTracing()
-    end
-    stop.OnClick = function(b)
-        self:StopTracing()
+    startstop.OnClick = function(b)
+        if not self.TickHandler then
+            -- not tracing, intent is to start logging again, so rebuild/clear log
+            self:RebuildLog()
+        end
+        self:StartStopTracing()
     end
     clear.OnClick = function(b)
         self.FrameNo = 0
@@ -173,10 +195,120 @@ function ImguiECSLogger:InitializeLayout()
         self:RebuildLog()
     end
 end
+function ImguiECSLogger:CreateScribeThrobber()
+    local viewport = Ext.IMGUI.GetViewportSize()
+    local win = Ext.IMGUI.NewWindow("ScribeThrobber")
+    local offset = {20, 20}
+    win.NoTitleBar = true
 
+    win.NoResize = true
+    win:SetSize({32,32}, "Always")
+    -- win.NoMove = true
+    win:SetStyle("WindowPadding", 0)
+    win:SetColor("WindowBg", {0,0,0,0})
+    win:SetColor("Border", {0,0,0,0})
+    win.Visible = false
+    win.Closeable = false
+
+    Imgui.CreateAnimation(win, "scribed", {32,32}, 96, 2, 192, 1, 60)
+    Ext.Events.Tick:Subscribe(function()
+        local picker = Ext.UI.GetPickingHelper(1)
+        if picker then
+            win:SetPos({offset[1]+picker.WindowCursorPos[1], offset[2]+picker.WindowCursorPos[2]})
+        end
+    end)
+    self.ThrobberWin = win
+end
+
+function ImguiECSLogger:CreateComponentWatchWindow()
+    local watchedComponentsGroup = self.Window:AddGroup("WatchedComponentsGroup") -- TODO decide where this really goes in layout
+    local watchedComponentsButton = watchedComponentsGroup:AddButton("Watched Components")
+
+    local win = Imgui.CreateCommonWindow("ECS Logger - Watched Components", {
+        IDContext = "WatchCompWin",
+    })
+
+    -- contents
+    win:AddSeparatorText("Components to Watch")
+    ---@type ImguiDualPane
+    local dualPane = ImguiDualPane:New{
+        TreeParent = win,
+    }
+    local cachedKnownComponents = Cache:GetOr({}, CacheData.RuntimeComponentNames)
+    for t, name in table.pairsByKeys(cachedKnownComponents) do
+        private.KnownComponents[t] = name
+        dualPane:AddOption(t, { TooltipText = name })
+    end
+    local cachedUnknownComponents = Cache:GetOr({}, CacheData.UnmappedComponentNames)
+    for t, _ in table.pairsByKeys(cachedUnknownComponents) do
+        private.UnknownComponents[t] = true
+        dualPane:AddOption(t, {
+            TooltipText = string.format("Unmapped: %s", t),
+            Highlight = true,
+        })
+    end
+
+    -- Component Watch Menu setup
+    local watchSettingsMainMenu = win:AddMainMenu()
+    local watchSettingsMenu = watchSettingsMainMenu:AddMenu("Settings")
+    local autoInspectChk = watchSettingsMenu:AddCheckbox("Inspect Seen", false)
+    autoInspectChk:Tooltip():AddText("\t".."Automatically inspect entities with watched components, as they are seen.")
+    autoInspectChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    local autoDumpChk = watchSettingsMenu:AddCheckbox("Dump Seen", false)
+    autoDumpChk:Tooltip():AddText("\t".."Automatically dump entities with watched components to file, as they are seen.")
+    autoDumpChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+
+    autoInspectChk.OnChange = function(c)
+        self.AutoInspect = c.Checked
+    end
+    autoDumpChk.OnChange = function(c)
+        self.AutoDump = c.Checked
+    end
+
+    self.WatchComponentWindow = win
+    self.WatchDualPane = dualPane
+    self.WatchDualPane.ChangesSubject:Subscribe(function(c)
+        private.WatchedComponents = self.WatchDualPane:GetOptionsMap()
+    end)
+    private.WatchedComponents = self.WatchDualPane:GetOptionsMap() -- init
+    watchedComponentsButton.OnClick = function() win.Open = not win.Open end
+end
+
+---@param entry EntityLogEntry
+---@param filterTable ImguiLogFilter
+---@return boolean
+function ImguiECSLogger:IsEntryDrawable(entry, filterTable)
+    if not self.ApplyWatchFilters then return true end
+    filterTable = filterTable or self:GetFilterTable() -- hmm, what to do here
+
+    for _, name in ipairs(entry.Components) do
+        if self.WatchDualPane:IsSelected(name) then
+            return true
+        end
+    end
+    return false
+end
+
+function ImguiECSLogger:StartStopTracing()
+    if self.TickHandler then
+        -- Currently tracing, turn off
+        Ext.Entity.EnableTracing(false)
+        Ext.Entity.ClearTrace()
+        Ext.Events.Tick:Unsubscribe(self.TickHandler)
+        self.TickHandler = nil
+        self.ThrobberWin.Visible = false
+    else
+        -- Not currently tracing, turn on
+        Ext.Entity.EnableTracing(true)
+        self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+        self.ThrobberWin.Visible = true
+    end
+end
 function ImguiECSLogger:StartTracing()
-    Ext.Entity.EnableTracing(true)
-    self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+    if not self.TickHandler then
+        Ext.Entity.EnableTracing(true)
+        self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
+    end
 end
 
 function ImguiECSLogger:StopTracing()
@@ -199,10 +331,15 @@ function ImguiECSLogger:OnTick()
                 if changes.Destroy then msg = msg .. "\x1b[31m Destroyed" end
                 print(msg)
             end
-            local newEntry = ImguiLogEntry:New{
+            local entityName = self:GetEntityName(entity)
+            local inspectThisEntity = false
+            local dumpThisEntity = false
+
+            local newEntry = EntityLogEntry:New{
+                Entity = entity,
                 TimeStamp = self.FrameNo,
-                _Entry = self:GetEntityName(entity),
-                _FilterableEntry = self:GetEntityName(entity),
+                _Entry = entityName,
+                _FilterableEntry = entityName,
                 _Category = "Unknown"
             }
             if newEntry._Entry == "" then newEntry._Entry = tostring(entity) newEntry._FilterableEntry = "UnnamedEntity" end
@@ -212,6 +349,7 @@ function ImguiECSLogger:OnTick()
             if changes.Immediate then newEntry._Category = "Immediate"end
             if changes.Ignore then newEntry._Category = "Ignore" end
 
+            local componentNames = {}
             for _,component in pairs(changes.Components) do
                 if self:IsComponentChangePrintable(entity, component) then
                     if self.TrackChangeCounts then
@@ -247,9 +385,33 @@ function ImguiECSLogger:OnTick()
                     elseif component.OneFrame then
                         newSub = "! "
                     end
+                    table.insert(componentNames, component.Name)
                     newEntry:AddSubEntry(newsub..tostring(component.Name))
+                    self.WatchDualPane:AddOption(component.Name)
+                    if not private.KnownComponents[component.Name] then
+                        -- Unmapped component
+                        if not private.UnknownComponents[component.Name] then
+                            -- Really unknown unknown, add locally, update Cache file
+                            private.UnknownComponents[component.Name] = true
+                            Cache:AddOrChange(CacheData.UnmappedComponentNames, private.UnknownComponents)
+                        end
+                    end
+                    if self.AutoInspect and private.WatchedComponents[component.Name] then
+                        inspectThisEntity = true
+                    end
+                    if self.AutoDump and private.WatchedComponents[component.Name] then
+                        dumpThisEntity = true
+                    end
+                end
+                if dumpThisEntity then
+                    Helpers.Dump(entity, string.format("AutoDump-%s", entityName))
+                end
+                if inspectThisEntity then
+                    -- Inspector:GetOrCreate(entity, LocalPropertyInterface) -- TODO fix extra instances (init order problem?)
+                    Scribe:UpdateInspectTarget(entity)
                 end
             end
+            newEntry.Components = componentNames
             self:AddLogEntry(newEntry)
             self.EventCounter.Label = "Events: " .. #self.LogEntries
         end

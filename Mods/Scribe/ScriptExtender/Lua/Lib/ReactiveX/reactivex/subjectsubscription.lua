@@ -12,21 +12,22 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 --- @field _observer Observer
 local SubjectSubscription = setmetatable({}, Subscription)
 SubjectSubscription.__index = SubjectSubscription
-SubjectSubscription.__tostring = util.constant('SubjectSubscription')
+SubjectSubscription.__tostring = util.Constant('SubjectSubscription')
 
 --- Creates a new SubjectSubscription.
 --- @param subject Subject The action to run when the subscription is unsubscribed. It will only be run once.
 --- @param observer Observer
 --- @return Subscription
-function SubjectSubscription.create(subject, observer)
-    local self = setmetatable(Subscription.create(), SubjectSubscription)
+function SubjectSubscription.Create(subject, observer)
+    local self = setmetatable(Subscription.Create(), SubjectSubscription)
     self._subject = subject
     self._observer = observer
 
     return self
 end
 
-function SubjectSubscription:unsubscribe()
+--- Unsubscribes the subscription, performing any necessary cleanup work.
+function SubjectSubscription:Unsubscribe()
     if self._unsubscribed then
         return
     end

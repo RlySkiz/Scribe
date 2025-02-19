@@ -1,13 +1,13 @@
 local util = {}
 
-util.pack = table.pack or function(...) return { n = select('#', ...), ... } end
+util.Pack = table.pack or function(...) return { n = select('#', ...), ... } end
 ---@diagnostic disable-next-line: deprecated
-util.unpack = table.unpack or unpack
-util.eq = function(x, y) return x == y end
-util.noop = function() end
-util.identity = function(x) return x end
-util.constant = function(x) return function() return x end end
-util.isa = function(object, classOrClassName)
+util.Unpack = table.unpack or unpack
+util.Eq = function(x, y) return x == y end
+util.Noop = function() end
+util.Identity = function(x) return x end
+util.Constant = function(x) return function() return x end end
+util.IsA = function(object, classOrClassName)
     if type(object) == 'table'
         and type(getmetatable(object)) == 'table'
     then
@@ -34,7 +34,7 @@ util.isa = function(object, classOrClassName)
 
     return false
 end
-util.hasValue = function(tab, value)
+util.HasValue = function(tab, value)
     for _, v in ipairs(tab) do
         if v == value then
             return true
@@ -43,18 +43,7 @@ util.hasValue = function(tab, value)
 
     return false
 end
--- util.implements = function (classOrObject, interface)
---   if interface == nil then
---     return type(classOrObject) == 'table'
---       and type(getmetatable(classOrObject)) == 'table'
---       and type(getmetatable(classOrObject).___implements) == 'table'
---       and util.hasValue(classOrObject.___implements)
---   else
---     classOrObject.___implements = classOrObject.___implements or {}
---     table.insert(classOrObject.___implements)
---   end
--- end
-util.isCallable = function(thing)
+util.IsCallable = function(thing)
     return type(thing) == 'function'
         or (
             type(thing) == 'table'
@@ -62,10 +51,10 @@ util.isCallable = function(thing)
             and type(getmetatable(thing).__call) == 'function'
         )
 end
-util.tryWithObserver = function(observer, fn, ...)
+util.TryWithObserver = function(observer, fn, ...)
     local success, result = pcall(fn, ...)
     if not success then
-        observer:onError(result)
+        observer:OnError(result)
     end
     return success, result
 end

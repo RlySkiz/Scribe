@@ -12,7 +12,7 @@ local _initialized = false
 --- @field _createObserver Observer
 local AnonymousSubject = {}
 AnonymousSubject.__index = AnonymousSubject
-AnonymousSubject.__tostring = util.constant('AnonymousSubject')
+AnonymousSubject.__tostring = util.Constant('AnonymousSubject')
 
 local function lazyInitClass()
     if _initialized then return end
@@ -25,31 +25,31 @@ end
 ---@param sourceSubject Subject
 ---@param createObserver Observer
 ---@return AnonymousSubject
-function AnonymousSubject.create(sourceSubject, createObserver)
+function AnonymousSubject.Create(sourceSubject, createObserver)
     lazyInitClass()
 
-    local self = setmetatable(Subject.create(), AnonymousSubject)
+    local self = setmetatable(Subject.Create(), AnonymousSubject)
     self._sourceSubject = sourceSubject
     self._createObserver = createObserver
 
     return self
 end
 
-function AnonymousSubject:onNext(...)
-    if self._sourceSubject and self._sourceSubject.onNext then
-        self._sourceSubject:onNext(...)
+function AnonymousSubject:OnNext(...)
+    if self._sourceSubject and self._sourceSubject.OnNext then
+        self._sourceSubject:OnNext(...)
     end
 end
 
-function AnonymousSubject:onError(msg)
-    if self._sourceSubject and self._sourceSubject.onError then
-        self._sourceSubject:onError(msg)
+function AnonymousSubject:OnError(msg)
+    if self._sourceSubject and self._sourceSubject.OnError then
+        self._sourceSubject:OnError(msg)
     end
 end
 
-function AnonymousSubject:onCompleted()
-    if self._sourceSubject and self._sourceSubject.onCompleted then
-        self._sourceSubject:onCompleted()
+function AnonymousSubject:OnCompleted()
+    if self._sourceSubject and self._sourceSubject.OnCompleted then
+        self._sourceSubject:OnCompleted()
     end
 end
 
