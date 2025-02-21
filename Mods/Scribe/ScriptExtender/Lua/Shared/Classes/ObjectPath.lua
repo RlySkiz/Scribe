@@ -2,41 +2,55 @@
 --- @class ObjectPath
 --- @field Root EntityHandle|string
 --- @field Path any[]
---- @field Parent ObjectPath|nil
 ObjectPath = {}
 
 ---@return ObjectPath
-function ObjectPath:New(root, path, parent)
+function ObjectPath:New(root, path)
     local pathClone = {}
-    for i,key in ipairs(path or {}) do
+    for _,key in ipairs(path or {}) do
         table.insert(pathClone, key)
     end
 
 	local o = {
 		Root = root,
         Path = pathClone,
-        Parent = parent
 	}
 	setmetatable(o, self)
     self.__index = self
     return o
 end
 
-function ObjectPath:Resolve()
+--- Resolves the path to the object it points to, optionally stopping recursion
+--- @param stopAtRecursion boolean?
+--- @return any, boolean
+function ObjectPath:Resolve(stopAtRecursion)
     local obj = self.Root
-    for _,name in ipairs(self.Path) do
-        local actualName = string.gsub(tostring(name), " %*%*RECURSION%*%*", "")
-        -- Jank workaround for accessing elements in a set
-        if type(obj) == "userdata" and Ext.Types.GetValueType(obj) == "Set" then
-            obj = Ext.Types.GetHashSetValueAt(obj, actualName)
-        else
-            obj = obj[actualName]
+    local seen = {}
+
+    for _, name in ipairs(self.Path) do
+        if stopAtRecursion and seen[obj] then
+            return "**RECURSION**", true
         end
 
-        if obj == nil then return nil end
+        seen[obj] = true
+
+        -- Jank workaround for accessing elements in a set
+        if type(obj) == "userdata" and Ext.Types.GetValueType(obj) == "Set" then
+            obj = Ext.Types.GetHashSetValueAt(obj, name)
+        else
+            obj = obj[name]
+        end
+
+        if obj == nil then return nil,false end
     end
 
-    return obj
+    return obj,false
+end
+
+---@return boolean
+function ObjectPath:IsRecursive()
+    local _, isRecursive = self:Resolve(true)
+    return isRecursive
 end
 
 function ObjectPath:__tostring()
@@ -53,13 +67,12 @@ function ObjectPath:__tostring()
 end
 
 function ObjectPath:Clone()
-    return ObjectPath:New(self.Root, self.Path, self.Parent)
+    return ObjectPath:New(self.Root, self.Path)
 end
 
 function ObjectPath:CreateChild(child)
     local path = self:Clone()
     table.insert(path.Path, child)
-    path.Parent = self
     return path
 end
 

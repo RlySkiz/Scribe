@@ -16,7 +16,7 @@ function EntityEditor:Create(holder, path, key, value, type, setter)
         name = H.GetEntityName(value) or tostring(value)
     end
 
-    local inspectBtn = holder:AddButton(name)
+    local inspectBtn = holder:AddButton(name) --[[@as ExtuiButton]]
     inspectBtn.ItemWidth = -5
     inspectBtn.UserData = { Target = value }
     inspectBtn.IDContext = tostring(value)
@@ -29,6 +29,10 @@ function EntityEditor:Create(holder, path, key, value, type, setter)
             i.TreeView.DefaultOpen = true
             i.Window:SetFocus()
         end
+    end
+    if value == path.Root or value == "**RECURSION**" then
+        inspectBtn.Disabled = true
+        inspectBtn:Tooltip():AddText("\t".."Recursion: Disabled")
     end
 end
 

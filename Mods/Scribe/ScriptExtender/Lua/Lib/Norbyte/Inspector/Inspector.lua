@@ -83,9 +83,7 @@ function Inspector:AddExpandedChild(node, name, canExpand)
     local child = node:AddTree(tostring(name))
     child.UserData = { Path = node.UserData.Path:CreateChild(name) }
 
-    if not string.find(tostring(name), "**RECURSION**") then
-        child.OnExpand = function (e) self:ExpandNode(e) end
-    end
+    child.OnExpand = function (e) self:ExpandNode(e) end
     child.OnClick = function (e) self:ViewNodeProperties(e) end
 
     child.Leaf = not canExpand

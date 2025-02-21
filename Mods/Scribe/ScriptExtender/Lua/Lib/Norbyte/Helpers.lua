@@ -91,13 +91,21 @@ function IsArrayOfScalarTypes(val)
 end
 
 
-function IsNodeTypeProperty(v)
-    return not IsPlausiblyScalar(v) and not IsEntity(v) and not IsArrayOfScalarTypes(v)
+-- Rare edge case of light userdata with possibly no SE-defined iterator, wrap with pcall
+function IsUserdataEdgecase(v)
+    return Ext.Types.GetValueType(v) == "userdata" and not pcall(function() for _,_ in pairs(v) do end end)
 end
 
+function IsNodeTypeProperty(v)
+    return not IsPlausiblyScalar(v) and not IsEntity(v) and not IsArrayOfScalarTypes(v) and not IsUserdataEdgecase(v)
+end
 
 function CanExpandValue(v)
-    for key,val in pairs(v) do
+    if IsUserdataEdgecase(v) then
+        -- no iterator
+        return false
+    end
+    for _,val in pairs(v) do
         if IsNodeTypeProperty(val) then
             return true
         end

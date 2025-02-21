@@ -146,7 +146,10 @@ end
 
 function Scribe:GetOrCreateInspector(entity, intf, o)
     if self.Inspectors[entity] ~= nil then
-        return self.Inspectors[entity]
+        -- make sure imgui object still exists before returning
+        if pcall(function() return self.Inspectors[entity].Window.Open end) then
+            return self.Inspectors[entity]
+        end
     end
 
     local i = Inspector:New(intf, o)

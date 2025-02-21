@@ -104,7 +104,7 @@ end
 
 
 function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
-    local currentValue = propertyPath:Resolve()
+    local currentValue = propertyPath:Resolve(true)
     local selectable = holder:AddSelectable(tostring(propName))
     local popup = holder:AddPopup("")
     -- RPrint(("-- %s --"):format(propName))
@@ -126,15 +126,13 @@ function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
     popup:AddText(("Type: "..displayType))
     local watchButton = popup:AddButton("Watch: "..propName)
     watchButton.OnClick = function()
-        if WatchWindow then
-            WatchWindow:AddWatch(propertyPath.Root --[[@as EntityHandle]], propertyPath)
+        if Scribe.PropertyWatch then
+            Scribe.PropertyWatch:AddWatch(propertyPath.Root --[[@as EntityHandle]], propertyPath)
         end
     end
-    if not string.find(propName, "**RECURSION**") then
-        selectable.OnClick = function()
-            selectable.Selected = false
-            popup:Open()
-        end
+    selectable.OnClick = function()
+        selectable.Selected = false
+        popup:Open()
     end
 end
 
@@ -146,44 +144,42 @@ function PropertyListView:Refresh()
     -- Add Meta Info
     -- _D(self.Target)
     if #self.Target.Path > 0 then
-        local pathStr = tostring(self.Target):gsub(" %*%*RECURSION%*%*", "")
-        if pathStr ~= "" then
-            -- Determine good path name
-            local placeholderPath
-            if IsEntity(self.Target.Root) then
-                local entityName = GetEntityName(self.Target.Root) or tostring(self.Target.Root)
-                local lastPathSegment = self.Target.Path[#self.Target.Path]
-                if type(lastPathSegment) == "number" then
-                    local previousSegment = self.Target.Path[#self.Target.Path - 1]
-                    placeholderPath = entityName .. "_" .. tostring(previousSegment) .. "_" .. tostring(lastPathSegment)
-                else
-                    placeholderPath = entityName .. "_" .. tostring(lastPathSegment):gsub(" %*%*RECURSION%*%*", "")
-                end
+        -- Determine good path name
+        local pathStr = tostring(self.Target)
+        local placeholderPath
+        if IsEntity(self.Target.Root) then
+            local entityName = GetEntityName(self.Target.Root) or tostring(self.Target.Root)
+            local lastPathSegment = self.Target.Path[#self.Target.Path]
+            if type(lastPathSegment) == "number" then
+                local previousSegment = self.Target.Path[#self.Target.Path - 1]
+                placeholderPath = entityName .. "_" .. tostring(previousSegment) .. "_" .. tostring(lastPathSegment)
             else
-                placeholderPath = "Resource"
+                placeholderPath = entityName .. "_" .. tostring(lastPathSegment):gsub(" %*%*RECURSION%*%*", "")
             end
-
-            local row = self.MetaInfo:AddRow()
-            row:AddCell():AddText("Path")
-            local pathCell = row:AddCell()
-            local pathText = pathCell:AddInputText("", pathStr)
-            local saveButton = pathCell:AddButton("Dump")
-            Imgui.CreateSimpleTooltip(saveButton:Tooltip(), function(tt)
-                tt:AddText(string.format("Dump to /ScriptExtender/Scribe/_Dumps/[C]%s", placeholderPath))
-                tt:AddBulletText("Up to 10 files with the same name are allowed."):SetColor("Text", Imgui.Colors.DarkOrange)
-            end)
-            saveButton.SameLine = true
-            saveButton.OnClick = function()
-                local obj = self.Target:Resolve()
-                if obj then
-                    Helpers.Dump(obj, placeholderPath)
-                end
-            end
-            pathText.ReadOnly = true
-            self.MetaInfoContainer.Visible = true
         else
-            self.MetaInfoContainer.Visible = false
+            placeholderPath = "Resource"
         end
+
+        local row = self.MetaInfo:AddRow()
+        row:AddCell():AddText("Path")
+        local pathCell = row:AddCell()
+        local pathText = pathCell:AddInputText("", pathStr)
+        local saveButton = pathCell:AddButton("Dump")
+        Imgui.CreateSimpleTooltip(saveButton:Tooltip(), function(tt)
+            tt:AddText(string.format("Dump to /ScriptExtender/Scribe/_Dumps/[C]%s", placeholderPath))
+            tt:AddBulletText("Up to 10 files with the same name are allowed."):SetColor("Text", Imgui.Colors.DarkOrange)
+        end)
+        saveButton.SameLine = true
+        saveButton.OnClick = function()
+            local obj = self.Target:Resolve()
+            if obj then
+                Helpers.Dump(obj, placeholderPath)
+            end
+        end
+        pathText.ReadOnly = true
+        self.MetaInfoContainer.Visible = true
+    else
+        self.MetaInfoContainer.Visible = false
     end
 
     -- Add Properties
