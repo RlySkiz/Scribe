@@ -5,10 +5,12 @@ local defaultThemes = require("Lib.Aahz.Client.Classes.ImguiThemes.DefaultColors
 ---@field AvailableThemes ImguiTheme[]
 ---@field CurrentTheme ImguiTheme
 ---@field CurrentThemeChanged Subject # pushes the new theme, when changed
+---@field _highlightedElementCache table<uint64, {Element:ExtuiStyledRenderable, Strength:integer?}> # cache of elements that have been highlighted
 ---@field QueuedSave integer Ext.Timer handleID for throttling SaveFile() to once every 5 seconds
 ThemeManager = _Class:Create("ThemeManager", nil, {
     LocalFileName = "Scribe/ImguiThemes.json",
     AvailableThemes = {},
+    _highlightedElementCache = {},
 })
 
 function ThemeManager:GenerateDefaults()
@@ -20,6 +22,7 @@ end
 function ThemeManager:Init()
     self.AvailableThemes = self.AvailableThemes or {}
     self.LocalFileName = self.LocalFileName or "Scribe/ImguiThemes.json"
+    self._highlightedElementCache = self._highlightedElementCache or {}
     if self:LoadPresetsFromFile() then
         if table.isEmpty(self.AvailableThemes) then
             self:GenerateDefaults()
@@ -254,15 +257,9 @@ function ThemeManager:CreateUpdateableDisplay(holder)
         if Scribe and Scribe.AllWindows then
             local themeName = Imgui.Combo.GetSelected(themeDropdown)
             local imguiTheme = self.AvailableThemes[optionMap[themeName]]
-            for _, window in ipairs(Scribe.AllWindows) do
-                -- Check if imgui element still exists
-                if pcall(function() return window.Handle end) then
-                    imguiTheme:Apply(window)
-                end
+            if imguiTheme then
+                self:ChangeTheme(imguiTheme)
             end
-            self.CurrentTheme = imguiTheme
-            self.CurrentThemeChanged:OnNext(imguiTheme)
-            LocalSettings:AddOrChange(Static.Settings.CurrentTheme, imguiTheme.ID)
         end
     end
 
@@ -312,6 +309,59 @@ function ThemeManager:Apply(element)
     else
         SWarn("No current theme to apply.")
     end
+end
+
+---@param theme ImguiTheme
+function ThemeManager:ChangeTheme(theme)
+    if not theme or theme == "string" then return SWarn("Incorrect attempt to change theme.") end
+    for _, window in ipairs(Scribe.AllWindows) do
+        -- Check if imgui element still exists
+        if pcall(function() return window.Handle end) then
+            theme:Apply(window)
+        end
+    end
+    self.CurrentTheme = theme
+    self.CurrentThemeChanged:OnNext(theme)
+    LocalSettings:AddOrChange(Static.Settings.CurrentTheme, theme.ID)
+
+    -- Re-highlight all elements that have been highlighted
+    for handle, el in pairs(self._highlightedElementCache) do
+        -- check if imgui element still exists
+        if pcall(function() return el.Element.Handle end) then
+            self:ToggleTextHighlight(el.Element, self._highlightedElementCache[handle].Strength)
+        else
+            -- It's dead, remove
+            self._highlightedElementCache[handle] = nil
+        end
+    end
+end
+
+---Toggles the text highlight of an element according to the current ImguiTheme
+---@param el ExtuiStyledRenderable
+---@param highlightStrength integer? # optional: 0~100, or nil to unhighlight
+function ThemeManager:ToggleTextHighlight(el, highlightStrength)
+    -- Ensure highlightStrength is a valid number between 0 and 100, default to 0 if nil
+    highlightStrength = tonumber(highlightStrength) and math.max(0, math.min(100, highlightStrength)) or 0
+
+    -- Update cache
+    if highlightStrength == 0 then
+        self._highlightedElementCache[el.Handle] = nil
+    else
+        self._highlightedElementCache[el.Handle] = { Element = el, Strength = highlightStrength }
+    end
+
+    -- Lerp new color based on highlight strength
+    local currentHex = self.CurrentTheme.ThemeColors.MainText
+    local newColor
+    if highlightStrength > 0 then
+        local highlightHex = self.CurrentTheme.ThemeColors.Highlight
+        local lerpedHex = Helpers.Color.LerpHex(currentHex, highlightHex, highlightStrength)
+        newColor = Helpers.Color.HexToNormalizedRGBA(lerpedHex, 1.0)
+    else
+        newColor = Helpers.Color.HexToNormalizedRGBA(currentHex, 1.0)
+    end
+
+    el:SetColor("Text", newColor)
 end
 
 ---@type ThemeManager

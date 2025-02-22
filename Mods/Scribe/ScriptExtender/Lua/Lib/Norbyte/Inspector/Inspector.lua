@@ -66,6 +66,16 @@ function Inspector:Init(instanceId)
     self.TargetGroup.Visible = false
 
     self.EntityCardContainer = self.LeftContainer:AddGroup("")
+    self.HideInvalidNodeChk = self.LeftContainer:AddCheckbox("Hide Non-matches", true)
+    self.HideInvalidNodeChk:Tooltip():AddText("\t".."When searching, hides nodes that do not match the search criteria.")
+    self.TreeSearch = self.LeftContainer:AddInputText("")
+    self.TreeSearch.SameLine = true
+    self.TreeSearch.Hint = "Search..."
+    self.TreeSearch.EscapeClearsAll = true
+    self.TreeSearch.SizeHint = {-1, 32*Imgui.ScaleFactor()}
+    self.TreeSearch.AutoSelectAll = true
+    self.TreeSearch.OnChange = function() self:Search(self.TreeSearch.Text) end
+
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
 
@@ -90,6 +100,102 @@ function Inspector:AddExpandedChild(node, name, canExpand)
     child.SpanAvailWidth = true
 end
 
+function Inspector:Search(search)
+    if self.TreeView == nil or self.Target == nil then return end
+    if self._lastSearchedEntity ~= self.Target then
+        -- haven't searched this entity yet, do heavy Path build by expanding all nodes
+        -- local dump = {}
+        local function BuildPaths(node)
+            self:ExpandNode(node)
+            -- table.insert(dump, tostring(node.UserData.Path))
+            for _,child in ipairs(node.Children) do
+                BuildPaths(child)
+            end
+        end
+        BuildPaths(self.TreeView)
+        -- Helpers.Dump(dump, "BigPathDumpies")
+        self._lastSearchedEntity = self.Target
+    end
+
+    search = search:lower()
+    local searchResults = {}
+    local maxDepth = 0
+    local function PassesSearch(node)
+        return tostring(node.Label):lower():find(search)
+    end
+
+    local function SearchNode(node, depth)
+        depth = depth and depth + 1 or 0
+        local foundInChild = false
+
+        if depth > maxDepth then
+            maxDepth = depth
+        end
+
+        ImguiThemeManager:ToggleTextHighlight(node, 0) -- toggle highlight off for now on all elements
+        -- Visible by default, or if hide enabled, set to false initially
+        node.Visible = not self.HideInvalidNodeChk.Checked
+        node:SetOpen(false)
+
+        if node.Leaf and node.UserData and node.UserData.Path and PassesSearch(node) then
+            -- found result at this depth
+            searchResults[node] = depth
+            foundInChild = true
+        else
+            for _, child in ipairs(node.Children) do
+                if SearchNode(child, depth) then
+                    foundInChild = true
+                end
+            end
+        end
+
+        if foundInChild or PassesSearch(node) then
+            searchResults[node] = depth
+            node.Visible = true
+        else
+            node.Visible = not self.HideInvalidNodeChk.Checked
+        end
+
+        return foundInChild
+    end
+
+    -- Search...
+    if search:len() > 0 then
+        SearchNode(self.TreeView)
+        
+        -- Then highlight
+        for node, depth in pairs(searchResults) do
+            -- Lerp values to land between 30 and 80, where depth starts at 1 and ranges up to about 10 maxDepth
+            local rangeMin,rangeMax = 30,80
+            local lerp = rangeMin
+            if depth > 1 then
+                -- Interpolation factor
+                local factor = (depth - 1) / (maxDepth - 1)
+                -- Interpolate between range using factor
+                lerp = rangeMin + factor * (rangeMax - rangeMin)
+            end
+            ImguiThemeManager:ToggleTextHighlight(node, lerp)
+            node:SetOpen(true)
+        end
+        self.TreeView.Visible = true -- safety
+        self.TreeView:SetOpen(true)
+    else
+        local function ResetNodeVisibility(t) -- :shake:
+            t.Visible = true
+            ImguiThemeManager:ToggleTextHighlight(self.TreeView, 0)
+            for _, child in ipairs(t.Children) do
+                ResetNodeVisibility(child)
+            end
+        end
+        ResetNodeVisibility(self.TreeView)
+    end
+
+
+    -- #wishlistfeatures :gladge:
+    -- if #searchResults > 0 then
+    --     self.TreeView:ScrollTo(searchResults[1])
+    -- end
+end
 
 --- @param node ExtuiTree
 function Inspector:ExpandNode(node)

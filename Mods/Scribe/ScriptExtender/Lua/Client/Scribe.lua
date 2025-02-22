@@ -62,6 +62,16 @@ function Scribe:Initialize()
     self:SetupMouseSubscriptions()
 
     self.EntityCardContainer = self.LeftContainer:AddGroup("")
+    self.HideInvalidNodeChk = self.LeftContainer:AddCheckbox("Hide Non-matches", true)
+    self.HideInvalidNodeChk:Tooltip():AddText("\t".."When searching, hides nodes that do not match the search criteria.")
+    self.TreeSearch = self.LeftContainer:AddInputText("")
+    self.TreeSearch.SameLine = true
+    self.TreeSearch.Hint = "Search..."
+    self.TreeSearch.EscapeClearsAll = true
+    self.TreeSearch.SizeHint = {-1, 32*Imgui.ScaleFactor()}
+    self.TreeSearch.AutoSelectAll = true
+    self.TreeSearch.OnChange = function() self:Search(self.TreeSearch.Text) end
+
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
 
@@ -187,6 +197,7 @@ end
 Scribe.AddExpandedChild = Inspector.AddExpandedChild
 Scribe.ExpandNode = Inspector.ExpandNode
 Scribe.ViewNodeProperties = Inspector.ViewNodeProperties
+Scribe.Search = Inspector.Search
 
 ---@param target EntityHandle|string?
 function Scribe:UpdateInspectTarget(target)
