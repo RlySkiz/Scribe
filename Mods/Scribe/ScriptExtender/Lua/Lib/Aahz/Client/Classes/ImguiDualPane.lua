@@ -426,7 +426,7 @@ local function addSelectable(self, pane, option, changeType, metaInfo)
         selectable:Tooltip():AddText("\t"..(tostring(metaInfo.TooltipText)))
     end
     if metaInfo and metaInfo.Highlight then
-        ImguiThemeManager:ToggleTextHighlight(selectable, 50)
+        ImguiThemeManager:ToggleHighlight(selectable, 50)
     end
 
     selectable.OnClick = function(s)

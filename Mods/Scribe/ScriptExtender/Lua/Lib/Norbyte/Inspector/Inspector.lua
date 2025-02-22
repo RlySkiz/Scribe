@@ -121,7 +121,7 @@ function Inspector:Search(search)
     local searchResults = {}
     local maxDepth = 0
     local function PassesSearch(node)
-        return tostring(node.Label):lower():find(search)
+        return node.UserData and node.UserData.SearchKey and node.UserData.SearchKey:find(search) or false
     end
 
     local function SearchNode(node, depth)
@@ -132,7 +132,7 @@ function Inspector:Search(search)
             maxDepth = depth
         end
 
-        ImguiThemeManager:ToggleTextHighlight(node, 0) -- toggle highlight off for now on all elements
+        ImguiThemeManager:ToggleHighlight(node, 0) -- toggle highlight off for now on all elements
         -- Visible by default, or if hide enabled, set to false initially
         node.Visible = not self.HideInvalidNodeChk.Checked
         node:SetOpen(false)
@@ -174,7 +174,7 @@ function Inspector:Search(search)
                 -- Interpolate between range using factor
                 lerp = rangeMin + factor * (rangeMax - rangeMin)
             end
-            ImguiThemeManager:ToggleTextHighlight(node, lerp)
+            ImguiThemeManager:ToggleHighlight(node, lerp)
             node:SetOpen(true)
         end
         self.TreeView.Visible = true -- safety
@@ -182,7 +182,7 @@ function Inspector:Search(search)
     else
         local function ResetNodeVisibility(t) -- :shake:
             t.Visible = true
-            ImguiThemeManager:ToggleTextHighlight(self.TreeView, 0)
+            ImguiThemeManager:ToggleHighlight(self.TreeView, 0)
             for _, child in ipairs(t.Children) do
                 ResetNodeVisibility(child)
             end
@@ -201,11 +201,20 @@ end
 function Inspector:ExpandNode(node)
     if node.UserData.Expanded then return end
 
+    local searchKeyTbl = {}
+    local propKeys = {}
     self.PropertyInterface:FetchChildren(node.UserData.Path, function (nodes, properties, typeInfo)
         for _,info in ipairs(nodes) do
+            if not tonumber(info.Key) then
+                table.insert(searchKeyTbl, tostring(info.Key))
+            end
             self:AddExpandedChild(node, info.Key, info.CanExpand)
         end
+        for _,info in ipairs(properties) do
+            table.insert(propKeys, tostring(info.Key))
+        end
     end)
+    node.UserData.SearchKey = ("[%s]:%s>%s"):format(node.Label, table.concat(searchKeyTbl, ","), table.concat(propKeys, ",")):lower()
 
     node.UserData.Expanded = true
 end

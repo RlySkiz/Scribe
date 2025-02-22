@@ -279,3 +279,18 @@ function ImguiTheme:UpdateImguiTheme()
         end
     end
 end
+
+function ImguiTheme.guiColorIterator(themeKey)
+    local keys = {}
+    for k,_ in pairs(relatedProps[themeKey]) do
+        table.insert(keys, k)
+    end
+    local i = 0
+    return function()
+        i = i + 1
+        if i <= #keys then
+            return keys[i]
+        end
+        return nil
+    end
+end

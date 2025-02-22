@@ -6,7 +6,7 @@ Imgui._mainScheduler = RX.CooperativeScheduler.Create()
 Imgui.MainTick = RX.Subject.FromCoroutine(function()
     local i = 1
     while true do
-        _P(i)
+        -- _P(i)
         coroutine.yield(i)
         if i >= 60 then i = 0 else i = i + 1 end
     end

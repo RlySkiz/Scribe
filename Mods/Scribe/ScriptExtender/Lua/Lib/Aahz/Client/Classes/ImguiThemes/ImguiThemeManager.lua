@@ -328,7 +328,7 @@ function ThemeManager:ChangeTheme(theme)
     for handle, el in pairs(self._highlightedElementCache) do
         -- check if imgui element still exists
         if pcall(function() return el.Element.Handle end) then
-            self:ToggleTextHighlight(el.Element, self._highlightedElementCache[handle].Strength)
+            self:ToggleHighlight(el.Element, self._highlightedElementCache[handle].Strength)
         else
             -- It's dead, remove
             self._highlightedElementCache[handle] = nil
@@ -339,7 +339,9 @@ end
 ---Toggles the text highlight of an element according to the current ImguiTheme
 ---@param el ExtuiStyledRenderable
 ---@param highlightStrength integer? # optional: 0~100, or nil to unhighlight
-function ThemeManager:ToggleTextHighlight(el, highlightStrength)
+---@param colorKey GuiColor? # optional: key to use for highlight color, or nil for "Text" highlight default
+function ThemeManager:ToggleHighlight(el, highlightStrength, colorKey)
+    colorKey = colorKey or "Text"
     -- Ensure highlightStrength is a valid number between 0 and 100, default to 0 if nil
     highlightStrength = tonumber(highlightStrength) and math.max(0, math.min(100, highlightStrength)) or 0
 
@@ -361,7 +363,7 @@ function ThemeManager:ToggleTextHighlight(el, highlightStrength)
         newColor = Helpers.Color.HexToNormalizedRGBA(currentHex, 1.0)
     end
 
-    el:SetColor("Text", newColor)
+    el:SetColor(colorKey, newColor)
 end
 
 ---@type ThemeManager
