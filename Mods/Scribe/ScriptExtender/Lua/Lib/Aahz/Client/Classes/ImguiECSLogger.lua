@@ -40,6 +40,9 @@
 --- @field ApplyWatchFilters boolean
 --- @field AutoInspect boolean
 --- @field AutoDump boolean
+--- @field IgnoreComponentWindow ExtuiWindow
+--- @field IgnoreDualPane ImguiDualPane
+--- @field IgnoredComponents table<string, boolean>
 --- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
@@ -93,7 +96,6 @@ function ImguiECSLogger:CreateTab(tab, mainMenu)
 
     self.SettingsMenu = mainMenu:AddMenu("ECS Settings")
     mainMenu.UserData.RegisterSubMenu(self.SettingsMenu)
-    -- self.SettingsMenu:AddItem("Placeholder")
 
     self:InitializeLayout()
     self:CreateScribeThrobber()
@@ -126,18 +128,92 @@ function ImguiECSLogger:InitializeLayout()
         self.PrintChangesToConsole = c.Checked
     end
 
+    local excludeCrowds = self.SettingsMenu:AddCheckbox("Exclude Crowds", self.ExcludeCrowds)
+    excludeCrowds:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    excludeCrowds.IDContext = "Scribe_ECSLoggerExcludeCrowdsChk"
+    excludeCrowds:Tooltip():AddText("\t".."[Spam control] Exclude crowd entities from the log")
+
+    excludeCrowds.OnChange = function(c)
+        self.ExcludeCrowds = c.Checked
+    end
+
+    local excludeBoosts = self.SettingsMenu:AddCheckbox("Exclude Boosts", self.ExcludeBoosts)
+    excludeBoosts:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    excludeBoosts.IDContext = "Scribe_ECSLoggerExcludeBoostsChk"
+    excludeBoosts:Tooltip():AddText("\t".."[Spam control] Exclude boost entities from the log")
+    excludeBoosts.OnChange = function(c)
+        self.ExcludeBoosts = c.Checked
+    end
+    local excludeInterrupts = self.SettingsMenu:AddCheckbox("Exclude Interrupts", self.ExcludeInterrupts)
+    excludeInterrupts:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    excludeInterrupts.IDContext = "Scribe_ECSLoggerExcludeInterruptsChk"
+    excludeInterrupts:Tooltip():AddText("\t".."[Spam control] Exclude interrupt entities from the log")
+    excludeInterrupts.OnChange = function(c)
+        self.ExcludeInterrupts = c.Checked
+    end
+    local excludePassives = self.SettingsMenu:AddCheckbox("Exclude Passives", self.ExcludePassives)
+    excludePassives:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    excludePassives.IDContext = "Scribe_ECSLoggerExcludePassivesChk"
+    excludePassives:Tooltip():AddText("\t".."[Spam control] Exclude passive entities from the log")
+    excludePassives.OnChange = function(c)
+        self.ExcludePassives = c.Checked
+    end
+    local excludeInventories = self.SettingsMenu:AddCheckbox("Exclude Inventories", self.ExcludeInventories)
+    excludeInventories:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    excludeInventories.IDContext = "Scribe_ECSLoggerExcludeInventoriesChk"
+    excludeInventories:Tooltip():AddText("\t".."[Spam control] Exclude inventory entities from the log")
+    excludeInventories.OnChange = function(c)
+        self.ExcludeInventories = c.Checked
+    end
+
     self:CreateComponentWatchWindow()
-    local applyCompChkText = self.Window:AddText("Apply Watch Filters?")
-    applyCompChkText.SameLine = true
-    local applyCompChk = self.Window:AddCheckbox("", false)
-    applyCompChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    applyCompChk.SameLine = true
+    -- Component Watch Menu setup
+    local watchWindowSettingsMenu = self.SettingsMenu:AddMenu("Watched Components")
+    local watchCompButton = watchWindowSettingsMenu:AddItem("Open Watch Settings")
+    watchCompButton.OnClick = function() self.WatchComponentWindow.Open = not self.WatchComponentWindow.Open end
+
+    local applyCompChk = watchWindowSettingsMenu:AddCheckbox("Apply Watch Filters", false)
     applyCompChk:Tooltip():AddText("\t"..("Uses the selected components to filter the entity log."))
+    applyCompChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+
+    local autoInspectChk = watchWindowSettingsMenu:AddCheckbox("Inspect Seen", false)
+    autoInspectChk:Tooltip():AddText("\t".."Automatically inspect entities with watched components, as they are seen.")
+    autoInspectChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+
+    local autoDumpChk = watchWindowSettingsMenu:AddCheckbox("Dump Seen", false)
+    autoDumpChk:Tooltip():AddText("\t".."Automatically dump entities with watched components to file, as they are seen.")
+    autoDumpChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    
     applyCompChk.OnChange = function(c)
         self.ApplyWatchFilters = true
         self:RebuildLog()
     end
+    autoInspectChk.OnChange = function(c)
+        self.AutoInspect = c.Checked
+    end
+    autoDumpChk.OnChange = function(c)
+        self.AutoDump = c.Checked
+    end
 
+    self:CreateIgnoredComponentsWindow()
+    -- TODO Component Ignore menu
+    local ignoreSettingsMenu = self.SettingsMenu:AddMenu("Ignored Components")
+    local ignoreCompButton = ignoreSettingsMenu:AddItem("Open Ignore Settings")
+    ignoreCompButton.OnClick = function() self.IgnoreComponentWindow.Open = not self.IgnoreComponentWindow.Open end
+    local ignoreSpam = ignoreSettingsMenu:AddItem("Ignore known spam components")
+    local ignoreStatus = ignoreSettingsMenu:AddItem("Ignore status components")
+    ignoreSpam.OnClick = function()
+        for spam, _ in pairs(private.SpamComponents) do
+            self.IgnoreDualPane:AddOption(spam, { TooltipText = "Known spam component" }, true)
+        end
+    end
+    ignoreStatus.OnClick = function()
+        for sc, _ in pairs(private.StatusComponents) do
+            self.IgnoreDualPane:AddOption(sc, { TooltipText = "Spammy status component changes" }, true)
+        end
+    end
+
+    -- Log table setup
     local childWin = self.Window:AddChildWindow("Scribe_ECSLoggerChildWin")
     childWin.Size = {-1, -1}
 
@@ -196,7 +272,6 @@ function ImguiECSLogger:InitializeLayout()
     end
 end
 function ImguiECSLogger:CreateScribeThrobber()
-    local viewport = Ext.IMGUI.GetViewportSize()
     local win = Ext.IMGUI.NewWindow("ScribeThrobber")
     local offset = {20, 20}
     win.NoTitleBar = true
@@ -221,9 +296,6 @@ function ImguiECSLogger:CreateScribeThrobber()
 end
 
 function ImguiECSLogger:CreateComponentWatchWindow()
-    local watchedComponentsGroup = self.Window:AddGroup("WatchedComponentsGroup") -- TODO decide where this really goes in layout
-    local watchedComponentsButton = watchedComponentsGroup:AddButton("Watched Components")
-
     local win = Imgui.CreateCommonWindow("ECS Logger - Watched Components", {
         IDContext = "WatchCompWin",
     })
@@ -248,30 +320,54 @@ function ImguiECSLogger:CreateComponentWatchWindow()
         })
     end
 
-    -- Component Watch Menu setup
-    local watchSettingsMainMenu = win:AddMainMenu()
-    local watchSettingsMenu = watchSettingsMainMenu:AddMenu("Settings")
-    local autoInspectChk = watchSettingsMenu:AddCheckbox("Inspect Seen", false)
-    autoInspectChk:Tooltip():AddText("\t".."Automatically inspect entities with watched components, as they are seen.")
-    autoInspectChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    local autoDumpChk = watchSettingsMenu:AddCheckbox("Dump Seen", false)
-    autoDumpChk:Tooltip():AddText("\t".."Automatically dump entities with watched components to file, as they are seen.")
-    autoDumpChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
-
-    autoInspectChk.OnChange = function(c)
-        self.AutoInspect = c.Checked
-    end
-    autoDumpChk.OnChange = function(c)
-        self.AutoDump = c.Checked
-    end
-
     self.WatchComponentWindow = win
     self.WatchDualPane = dualPane
     self.WatchDualPane.ChangesSubject:Subscribe(function(c)
         private.WatchedComponents = self.WatchDualPane:GetOptionsMap()
     end)
     private.WatchedComponents = self.WatchDualPane:GetOptionsMap() -- init
-    watchedComponentsButton.OnClick = function() win.Open = not win.Open end
+end
+
+function ImguiECSLogger:CreateIgnoredComponentsWindow()
+    local win = Imgui.CreateCommonWindow("ECS Logger - Ignored Components", {
+        IDContext = "IgnoreCompWin",
+    })
+
+    -- contents
+    win:AddSeparatorText("Components to Ignore")
+    ---@type ImguiDualPane
+    local dualPane = ImguiDualPane:New{
+        TreeParent = win,
+    }
+    local cachedKnownComponents = Cache:GetOr({}, CacheData.RuntimeComponentNames)
+    for t, name in table.pairsByKeys(cachedKnownComponents) do
+        dualPane:AddOption(t, { TooltipText = name })
+    end
+    local cachedUnknownComponents = Cache:GetOr({}, CacheData.UnmappedComponentNames)
+    for t, _ in table.pairsByKeys(cachedUnknownComponents) do
+        dualPane:AddOption(t, {
+            TooltipText = string.format("Unmapped: %s", t),
+            Highlight = true,
+        })
+    end
+    if self.ExcludeSpamComponents then
+        for spam, _ in pairs(private.SpamComponents) do
+            dualPane:AddOption(spam, { TooltipText = "Known spam component" }, true)
+        end
+    end
+    if self.ExcludeStatuses then
+        for sc, _ in pairs(private.StatusComponents) do
+            dualPane:AddOption(sc, { TooltipText = "Spammy status component changes" }, true)
+        end
+    end
+
+    self.IgnoreComponentWindow = win
+    self.IgnoreDualPane = dualPane
+    self.IgnoreDualPane.ChangesSubject:Subscribe(function(c)
+        private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap()
+    end)
+    private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap() -- init
+    dualPane:Refresh() -- Hmm, shouldn't be necessary, but left pane not visible --FIXME
 end
 
 ---@param entry EntityLogEntry
@@ -478,6 +574,7 @@ function ImguiECSLogger:EntityHasPrintableChanges(entity, changes)
     if self.EntityCreations ~= nil and self.EntityCreations ~= changes.Create then return false end
     if self.EntityDeletions ~= nil and self.EntityDeletions ~= changes.Destroy then return false end
 
+    -- TODO switch to private.IgnoredComponents which should be configurable with DualPane
     if self.ExcludeInterrupts and entity:HasRawComponent("eoc::interrupt::DataComponent") then
         return false
     end
@@ -512,6 +609,7 @@ end
 ---@param entity EntityHandle
 ---@param component EcsECSComponentLog
 function ImguiECSLogger:IsComponentChangePrintable(entity, component)
+    -- TODO switch to private.IgnoredComponents which should be configurable with DualPane
     if self.OneFrameComponents ~= nil and self.OneFrameComponents ~= component.OneFrame then return false end
     if self.ReplicatedComponents ~= nil and self.ReplicatedComponents ~= component.ReplicatedComponent then return false end
     if self.ComponentCreations ~= nil and self.ComponentCreations ~= component.Create then return false end

@@ -212,9 +212,8 @@ Helpers.Format.NonEnglishCharMap = {
     ["Ą"] = "A", ["Ć"] = "C", ["Ę"] = "E", ["Ł"] = "L", ["Ń"] = "N",
     ["Ś"] = "S", ["Ź"] = "Z", ["Ż"] = "Z",
     ["ő"] = "o", ["ű"] = "u", ["Ő"] = "O", ["Ű"] = "U",
-    ["ő"] = "o", ["ű"] = "u", ["Ő"] = "O", ["Ű"] = "U",
-    ["ă"] = "a", ["î"] = "i", ["ș"] = "s", ["ț"] = "t",
-    ["Ă"] = "A", ["Î"] = "I", ["Ș"] = "S", ["Ț"] = "T",
+    ["ă"] = "a", ["ș"] = "s", ["ț"] = "t",
+    ["Ă"] = "A", ["Ș"] = "S", ["Ț"] = "T",
 }
 
 -- Removes illegal characters from a string, and replaces common non-English characters with English equivalents.

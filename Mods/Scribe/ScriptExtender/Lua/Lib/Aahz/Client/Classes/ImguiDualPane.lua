@@ -96,15 +96,39 @@ function ImguiDualPane:Init()
     self:InitializeLayout()
 end
 
---- Adds a string as an available option to choose
+--- Adds a string as an available option to choose, optionally also adding it to selection
 ---@param option string
----@param metaInfo table<string, any>
-function ImguiDualPane:AddOption(option, metaInfo)
-    self.ChangesSubject:OnNext({
-        ChangeType = DualPaneChangeType.AddOption,
-        Value = option,
-        MetaInfo = metaInfo,
-    })
+---@param metaInfo table<string, any>?
+---@param selected boolean?
+function ImguiDualPane:AddOption(option, metaInfo, selected)
+    if self._optionsMap[option] == nil then
+        self.ChangesSubject:OnNext({
+            ChangeType = DualPaneChangeType.AddOption,
+            Value = option,
+            MetaInfo = metaInfo,
+        })
+    else
+        -- SWarn("Attempted to add option that already exists: %s", change.Value)
+    end
+    if selected and not self._optionsMap[option] then
+        self:SelectOption(option)
+    end
+end
+--- Selects a valid option by name, moving it to the selected side
+---@param option string
+---@return boolean? # true if valid option provided and unselected, false if already selected, nil if invalid option
+function ImguiDualPane:SelectOption(option)
+    if self._optionsMap[option] == nil then
+        return SWarn("Attempted to select option that doesn't exist: %s", option)
+    end
+    if not self._optionsMap[option] then
+        self.ChangesSubject:OnNext({
+            ChangeType = DualPaneChangeType.SelectItem,
+            Value = option,
+        })
+        return true
+    end
+    return false
 end
 
 -- Removes a given string from the available options
@@ -308,8 +332,7 @@ function ImguiDualPane:InitializeLayout()
 
     -- Reapply theme changes by redrawing
     ImguiThemeManager.CurrentThemeChanged:Subscribe(function()
-        self:_RedrawLeftPane()
-        self:_RedrawRightPane()
+        self:Refresh()
     end)
 
     self._containerGroup = container
@@ -317,6 +340,12 @@ function ImguiDualPane:InitializeLayout()
     self.RightPane = rightPane
     self.Ready = true
 end
+
+function ImguiDualPane:Refresh()
+    self:_RedrawLeftPane()
+    self:_RedrawRightPane()
+end
+
 ---@private
 function ImguiDualPane:_UpdateCount()
     if self._headerTable == nil then return end
