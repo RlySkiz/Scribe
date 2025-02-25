@@ -279,6 +279,11 @@ function ImguiTheme:UpdateImguiTheme()
         end
     end
 end
+---@param themeKey ThemeKey
+---@return vec4
+function ImguiTheme:GetThemedColor(themeKey)
+    return HexToNormalizedRGBA(self.ThemeColors[themeKey], 1.0)
+end
 
 function ImguiTheme.guiColorIterator(themeKey)
     local keys = {}

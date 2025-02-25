@@ -2,6 +2,7 @@
 ---@class ImguiDualPane: MetaClass
 ---@field TreeParent ExtuiTreeParent
 ---@field ChangesSubject Subject
+---@field OnSettle Observable # debounced push once every 1.5 seconds after ChangesSubject receives a change
 ---@field private SearchInput ExtuiInputText
 ---@field private LeftPane ExtuiChildWindow
 ---@field private RightPane ExtuiChildWindow
@@ -18,6 +19,8 @@ ImguiDualPane = _Class:Create("ImguiDualPane", nil, {
     _optionsMap = {},
     _optionMetaCache = {},
 })
+---@type TimerScheduler?
+local dualPaneScheduler
 
 ---@enum DualPaneChangeType
 DualPaneChangeType = {
@@ -93,6 +96,14 @@ function ImguiDualPane:Init()
         -- Apply sorting
         self:_ApplySorting()
     end)
+    if not dualPaneScheduler then
+        -- Only create once, no need for multiple timers going, keep everything in sync
+        dualPaneScheduler= RX.TimerScheduler:Create()
+        dualPaneScheduler:Schedule(function() --[[empty]] end, 1500, 1500)
+    end
+    self.OnSettle = self.ChangesSubject:Debounce(1500, dualPaneScheduler)
+    -- Example subscription:
+    -- self.OnSettle:Subscribe(function() RPrint("Settled: "..self.TreeParent.Label) end)
     self:InitializeLayout()
 end
 
@@ -124,6 +135,22 @@ function ImguiDualPane:SelectOption(option)
     if not self._optionsMap[option] then
         self.ChangesSubject:OnNext({
             ChangeType = DualPaneChangeType.SelectItem,
+            Value = option,
+        })
+        return true
+    end
+    return false
+end
+--- Deselects a valid option by name, moving it to the available side
+---@param option string
+---@return boolean? # true if valid option provided and selected, false if already unselected(available), nil if invalid option
+function ImguiDualPane:DeselectOption(option)
+    if self._optionsMap[option] == nil then
+        return SWarn("Attempted to deselect option that doesn't exist: %s", option)
+    end
+    if self._optionsMap[option] then
+        self.ChangesSubject:OnNext({
+            ChangeType = DualPaneChangeType.DeselectItem,
             Value = option,
         })
         return true
