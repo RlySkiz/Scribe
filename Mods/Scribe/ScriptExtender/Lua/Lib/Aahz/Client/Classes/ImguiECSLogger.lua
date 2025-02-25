@@ -7,7 +7,7 @@
 --- @field OneFrameComponents boolean|nil Include "one-frame" components (usually one-shot event components)
 --- @field ReplicatedComponents boolean|nil Include components that can be replicated (not the same as replication events!)
 --- @field ComponentReplications boolean|nil Include server-side replication events
---- @field ComponentCreations boolean|nil Include entity creation events
+--- @field ComponentCreations boolean|nil Include component creation events
 --- @field ComponentDeletions boolean|nil Include component deletions
 --- @field ExcludeComponents table<string,boolean> Exclude these components
 --- @field IncludedOnly boolean
@@ -52,22 +52,34 @@ ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     ChangeCounts = {},
     LogEntries = {},
 
-    ExcludeSpamComponents = true,
-    ExcludeSpamEntities = true,
+    -- Event types
+    -- EntityCreations = true,
+    -- EntityDeletions = true,
+    -- OneFrameComponents = true,
+    -- ReplicatedComponents = true,
+    -- ComponentReplications = true,
+    -- ComponentCreations = true,
+    -- ComponentDeletions = true,
 
-    -- Exclude these components
-    ExcludeComponents = {},
-    -- Only include these components
-    IncludedOnly = false,
-    IncludeComponents = {},
-
-    EntityDeletions = false,
+    -- Exclusions
     ExcludeCrowds = true,
     ExcludeStatuses = true,
     ExcludeBoosts = true,
     ExcludeInterrupts = true,
     ExcludePassives = true,
     ExcludeInventories = true,
+    
+    -- Special exclusions
+    -- TODO making configurable ignore list
+    ExcludeSpamComponents = true,
+    ExcludeSpamEntities = true,
+    ExcludeComponents = {},
+
+    -- Only include these components
+    -- TODO making configurable watch list
+    IncludedOnly = false,
+    IncludeComponents = {},
+
     ApplyWatchFilters = false,
     AutoInspect = false,
     AutoDump = false,
@@ -128,44 +140,7 @@ function ImguiECSLogger:InitializeLayout()
         self.PrintChangesToConsole = c.Checked
     end
 
-    local excludeCrowds = self.SettingsMenu:AddCheckbox("Exclude Crowds", self.ExcludeCrowds)
-    excludeCrowds:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    excludeCrowds.IDContext = "Scribe_ECSLoggerExcludeCrowdsChk"
-    excludeCrowds:Tooltip():AddText("\t".."[Spam control] Exclude crowd entities from the log")
-
-    excludeCrowds.OnChange = function(c)
-        self.ExcludeCrowds = c.Checked
-    end
-
-    local excludeBoosts = self.SettingsMenu:AddCheckbox("Exclude Boosts", self.ExcludeBoosts)
-    excludeBoosts:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    excludeBoosts.IDContext = "Scribe_ECSLoggerExcludeBoostsChk"
-    excludeBoosts:Tooltip():AddText("\t".."[Spam control] Exclude boost entities from the log")
-    excludeBoosts.OnChange = function(c)
-        self.ExcludeBoosts = c.Checked
-    end
-    local excludeInterrupts = self.SettingsMenu:AddCheckbox("Exclude Interrupts", self.ExcludeInterrupts)
-    excludeInterrupts:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    excludeInterrupts.IDContext = "Scribe_ECSLoggerExcludeInterruptsChk"
-    excludeInterrupts:Tooltip():AddText("\t".."[Spam control] Exclude interrupt entities from the log")
-    excludeInterrupts.OnChange = function(c)
-        self.ExcludeInterrupts = c.Checked
-    end
-    local excludePassives = self.SettingsMenu:AddCheckbox("Exclude Passives", self.ExcludePassives)
-    excludePassives:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    excludePassives.IDContext = "Scribe_ECSLoggerExcludePassivesChk"
-    excludePassives:Tooltip():AddText("\t".."[Spam control] Exclude passive entities from the log")
-    excludePassives.OnChange = function(c)
-        self.ExcludePassives = c.Checked
-    end
-    local excludeInventories = self.SettingsMenu:AddCheckbox("Exclude Inventories", self.ExcludeInventories)
-    excludeInventories:SetColor("FrameBg", Imgui.Colors.DarkGray)
-    excludeInventories.IDContext = "Scribe_ECSLoggerExcludeInventoriesChk"
-    excludeInventories:Tooltip():AddText("\t".."[Spam control] Exclude inventory entities from the log")
-    excludeInventories.OnChange = function(c)
-        self.ExcludeInventories = c.Checked
-    end
-
+    self:SetupToggles()
     self:CreateComponentWatchWindow()
     -- Component Watch Menu setup
     local watchWindowSettingsMenu = self.SettingsMenu:AddMenu("Watched Components")
@@ -271,6 +246,51 @@ function ImguiECSLogger:InitializeLayout()
         self:RebuildLog()
     end
 end
+
+function ImguiECSLogger:SetupToggles()
+    local makeCheckbox = function(cell, name, key, tooltipText )
+        local chk = cell:AddCheckbox(name, self[key])
+        chk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+        chk.IDContext = "Scribe_ECSLogger"..key.."Chk"
+        chk:Tooltip():AddText("\t"..tooltipText)
+        chk.OnChange = function(c)
+            self[name] = c.Checked
+        end
+    end
+
+    -- TODO Hmm
+    -- Setup event types header
+    -- local eventTypesHeader = self.Window:AddCollapsingHeader("Event Types")
+    -- local eventTypesTable = eventTypesHeader:AddTable("Scribe_ECSLoggerEventTypesTable", 2)
+    -- eventTypesTable.Borders = true
+    -- local row = eventTypesTable:AddRow()
+    -- local c1 = row:AddCell()
+    -- local c2 = row:AddCell()
+
+    -- makeCheckbox(c1, "Entity Creations", "EntityCreations", "Include entity creation events")
+    -- makeCheckbox(c1, "Entity Deletions", "EntityDeletions", "Include entity deletion events")
+    -- makeCheckbox(c1, "One-frame Components", "OneFrameComponents", "Include 'one-frame' components (usually one-shot event components)")
+    -- makeCheckbox(c1, "Replicatable Components", "ReplicatedComponents", "Include components that can be replicated (not the same as replication events!)")
+    -- makeCheckbox(c2, "Component Replications", "ComponentReplications", "Include server-side replication events")
+    -- makeCheckbox(c2, "Component Creations", "ComponentCreations", "Include component creations")
+    -- makeCheckbox(c2, "Component Deletions", "ComponentDeletions", "Include component deletions")
+
+    -- Setup Exclusions header
+    local excludeHeader = self.Window:AddCollapsingHeader("Exclusions")
+    local excludeTable = excludeHeader:AddTable("Scribe_ECSLoggerExcludeTable", 2)
+    excludeTable.Borders = true
+    local row = excludeTable:AddRow()
+    local c1 = row:AddCell()
+    local c2 = row:AddCell()
+
+
+    makeCheckbox(c1, "Exclude Crowds", "ExcludeCrowds", "[Spam control] Exclude crowd entities from the log")
+    makeCheckbox(c1, "Exclude Boosts", "ExcludeBoosts", "[Spam control] Exclude boost entities from the log")
+    makeCheckbox(c1, "Exclude Interrupts", "ExcludeInterrupts", "[Spam control] Exclude interrupt entities from the log")
+    makeCheckbox(c2, "Exclude Passives", "ExcludePassives", "[Spam control] Exclude passive entities from the log")
+    makeCheckbox(c2, "Exclude Inventories", "ExcludeInventories", "[Spam control] Exclude inventory entities from the log")
+end
+
 function ImguiECSLogger:CreateScribeThrobber()
     local win = Ext.IMGUI.NewWindow("ScribeThrobber")
     local offset = {20, 20}
@@ -332,13 +352,16 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
     local win = Imgui.CreateCommonWindow("ECS Logger - Ignored Components", {
         IDContext = "IgnoreCompWin",
     })
-
-    -- contents
+    -- Create top-level
+    local header = win:AddCollapsingHeader("Known Component Groups")
+    header.DefaultOpen = false
+    
     win:AddSeparatorText("Components to Ignore")
     ---@type ImguiDualPane
     local dualPane = ImguiDualPane:New{
         TreeParent = win,
     }
+
     local cachedKnownComponents = Cache:GetOr({}, CacheData.RuntimeComponentNames)
     for t, name in table.pairsByKeys(cachedKnownComponents) do
         dualPane:AddOption(t, { TooltipText = name })
@@ -367,7 +390,64 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
         private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap()
     end)
     private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap() -- init
-    dualPane:Refresh() -- Hmm, shouldn't be necessary, but left pane not visible --FIXME
+
+    -- Now that dual pane is created and filled, build out group buttons
+    -- Table of ignore category buttons
+    local layoutTable = header:AddTable("IgnoredComponentsCategories", 2)
+    layoutTable.Borders = true
+    local row = layoutTable:AddRow()
+    local btns = {}
+    for _, group in ipairs(IgnoreGroups) do
+        local c = row:AddCell()
+        local btn = c:AddButton(group.Name)
+        Imgui.CreateSimpleTooltip(c:Tooltip(), function(tt)
+            Imgui.SetChunkySeparator(tt:AddSeparatorText("Contains:"))
+            tt:AddText(group:GetNameList())
+            tt:AddBulletText("Click to add this group to ignore list.")
+            tt:AddBulletText("Drag to Available pane to quickly deselect group.")
+        end)
+        btn.OnClick = function()
+            group:SelectInDualPane(self.IgnoreDualPane)
+            btn:SetColor("Button", ImguiThemeManager.CurrentTheme:GetThemedColor("Highlight"))
+        end
+
+        -- DragDrop
+        btn.CanDrag = true
+        btn.DragDropType = self.IgnoreDualPane.AvailableDragDropId
+        btn.OnDragStart = function(b, preview)
+            preview:AddText("Drag to Available pane to deselect this ignore group.")
+        end
+        btn.UserData = {
+            ComponentGroup = group,
+            Packaged = function(pane)
+                for component,_ in pairs(group.Components) do
+                    pane:DeselectOption(component)
+                end
+                btn:SetColor("Button", ImguiThemeManager.CurrentTheme.Colors.Button)
+            end
+        }
+
+        table.insert(btns, btn)
+    end
+    -- Check button status and color based on selection
+    local function checkButtonStatus()
+        local options = dualPane:GetOptionsMap()
+        ---@param btn ExtuiButton
+        for _, btn in ipairs(btns) do
+            ---@type ComponentIgnoreGroup
+            local g = btn.UserData.ComponentGroup
+            if g:IsApplied(options) then
+                btn:SetColor("Button", ImguiThemeManager.CurrentTheme:GetThemedColor("Highlight"))
+            else
+                btn:SetColor("Button", ImguiThemeManager.CurrentTheme.Colors.Button)
+            end
+        end
+    end
+    dualPane.OnSettle:Subscribe(checkButtonStatus)
+
+    -- Hmm, shouldn't be necessary, but left pane not visible and buttons didn't update --FIXME
+    dualPane:Refresh()
+    checkButtonStatus()
 end
 
 ---@param entry EntityLogEntry
@@ -467,15 +547,11 @@ function ImguiECSLogger:OnTick()
                     local newSub = ""
                     if component.Create then
                         newsub = "+ "
-                        if newEntry._Category == "Unknown" then
-                            newEntry._Category = "Created"
-                        end
+                        newEntry._Category = newEntry._Category == "EntityCreated" and "*Created" or "Created"
                     elseif component.Destroy then
                         newsub = "- "
                         -- mark entry as destruction event? doesn't seem to otherwise
-                        if newEntry._Category == "Unknown" then
-                            newEntry._Category = "Destroyed"
-                        end
+                        newEntry._Category = newEntry._Category == "EntityDestroyed" and "*Destroyed" or "Destroyed"
                     elseif component.Replicate then
                         newsub = "= "
                     elseif component.OneFrame then

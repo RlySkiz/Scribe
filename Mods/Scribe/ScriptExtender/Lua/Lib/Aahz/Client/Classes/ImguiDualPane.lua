@@ -5,7 +5,9 @@
 ---@field OnSettle Observable # debounced push once every 1.5 seconds after ChangesSubject receives a change
 ---@field private SearchInput ExtuiInputText
 ---@field private LeftPane ExtuiChildWindow
+---@field AvailableDragDropId string
 ---@field private RightPane ExtuiChildWindow
+---@field SelectedDragDropId string
 ---@field private _containerGroup ExtuiGroup
 ---@field private _headerTable ExtuiTable
 ---@field private _doubleClickTimeMap table<string, number>
@@ -276,32 +278,40 @@ function ImguiDualPane:InitializeLayout()
 
     -- Set Drag/Drop stuff for panes
     leftPane.DragDropType = id.."_Available"
+    self.AvailableDragDropId = leftPane.DragDropType
     rightPane.DragDropType = id.."_Selected"
+    self.SelectedDragDropId = rightPane.DragDropType
 
     ---@param pane ExtuiChildWindow
     ---@param dropped ExtuiSelectable
     ---@param changeType string
     local function handleDragDrop(pane, dropped, changeType)
-        if dropped.Selected then
-            -- Possibly multi-drag, iterate all children and collect selected labels to move
-            local selected = {}
-            ---@param v ExtuiSelectable
-            for _, v in ipairs(pane.Children) do
-                if v.Selected then
-                    table.insert(selected, v.Label)
+        if dropped.UserData and dropped.UserData.Packaged then
+            -- assume packaged content (ie- only buttons for now)
+            dropped.UserData.Packaged(self)
+        else
+            -- assume normal selectables
+            if dropped.Selected then
+                -- Possibly multi-drag, iterate all children and collect selected labels to move
+                local selected = {}
+                ---@param v ExtuiSelectable
+                for _, v in ipairs(pane.Children) do
+                    if v.Selected then
+                        table.insert(selected, v.Label)
+                    end
                 end
-            end
-            for _, label in ipairs(selected) do
+                for _, label in ipairs(selected) do
+                    self.ChangesSubject:OnNext({
+                        ChangeType = changeType,
+                        Value = label,
+                    })
+                end
+            else
                 self.ChangesSubject:OnNext({
                     ChangeType = changeType,
-                    Value = label,
+                    Value = dropped.Label,
                 })
             end
-        else
-            self.ChangesSubject:OnNext({
-                ChangeType = changeType,
-                Value = dropped.Label,
-            })
         end
     end
 

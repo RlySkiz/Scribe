@@ -3,6 +3,7 @@ RequireFiles("Lib/Aahz/Client/Classes/", {
     "ImguiThemes/ImguiThemeManager",
     "ImguiDualPane",
     "ImguiAnimation",
+    "ComponentIgnoreGroup",
     "ImguiLogger",
     "ImguiECSLogger",
     "ImguiServerEventLogger",
