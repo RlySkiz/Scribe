@@ -20,10 +20,10 @@
           <attribute id="StartupLevelName" type="FixedString" value="" />
           <attribute id="Tags" type="LSString" value="" />
           <attribute id="Type" type="FixedString" value="" />
-          <attribute id="Version64" type="int64" value="36732484460740608" />
+          <attribute id="Version64" type="int64" value="72057594037927936" />
           <children>
             <node id="PublishVersion">
-              <attribute id="Version64" type="int64" value="36732484460740608" />
+              <attribute id="Version64" type="int64" value="72057594037927936" />
             </node>
             <node id="TargetModes">
               <children>

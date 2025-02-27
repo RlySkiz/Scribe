@@ -1,3 +1,5 @@
+local NetworkEvents = Ext.Require("Shared/Classes/NetworkEvents.lua")
+
 ---@class ServerEventWatcher: MetaClass
 ---@field ListenerHandles integer[]
 ---@field Ready boolean
@@ -16,6 +18,14 @@ function ServerEventWatcher:Stop()
         Ext.Osiris.UnregisterListener(handle)
     end
 end
+
+NetworkEvents.ServerEventWatcher_StartStop:SetHandler(function (payload)
+    if payload.Stop then
+        ServerEventWatcher:Stop()
+    elseif payload.Start then
+        ServerEventWatcher:Start()
+    end
+end)
 
 function ServerEventWatcher:Notify(eventName, eventTable)
     Ext.Net.BroadcastMessage("ServerEventNotification", Ext.Json.Stringify({
@@ -141,7 +151,7 @@ local MainServerEventWatcher
 Ext.Events.SessionLoaded:Subscribe(function()
     if MainServerEventWatcher == nil then
         MainServerEventWatcher = ServerEventWatcher:New()
-        ServerEventWatcher:Start()
+        -- ServerEventWatcher:Start() -- WIP: Add a setting to determine if this should run immediately on save load
     end
 end)
 

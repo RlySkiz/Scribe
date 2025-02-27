@@ -216,26 +216,21 @@ Helpers.Format.NonEnglishCharMap = {
     ["Ă"] = "A", ["Ș"] = "S", ["Ț"] = "T",
 }
 
--- Removes illegal characters from a string, and replaces common non-English characters with English equivalents.
--- < (less than)
--- > (greater than)
--- : (colon)
--- " (double quote)
--- / (forward slash)
--- \ (backslash)
--- | (vertical bar or pipe)
--- ? (question mark)
--- * (asterisk)
--- @param str The input string to be sanitized.
--- @return A new string with the illegal characters removed.
+-- Removes illegal characters from a filename, and replaces common non-English characters with English equivalents.
+-- @param str Filename string to be sanitized.
+-- @return Sanitized filename string.
 function Helpers.Format.SanitizeFileName(str)
+    
     -- Replace non-English characters with their English equivalents
     str = string.gsub(str, ".", function(c)
         return Helpers.Format.NonEnglishCharMap[c] or c
     end)
-
+    
     -- Remove control characters and basic illegal characters
-    str = string.gsub(str, "[%c<>:\"/\\|%?%*]", "")
+    str = string.gsub(str, "[%c<>:\"/\\|%?%*]", "") -- Removes:     < > : " / \ | ? *
+
+    -- Trim whitespace from the beginning and end of the string
+    str = str:trim()
 
     return str
 end

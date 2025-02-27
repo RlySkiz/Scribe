@@ -16,6 +16,7 @@ function string:split(delimiter)
     table.insert( result, string.sub(self, from))
     return result
 end
+
 --- Trims leading and trailing whitespace
 ---@return string
 function string:trim()
