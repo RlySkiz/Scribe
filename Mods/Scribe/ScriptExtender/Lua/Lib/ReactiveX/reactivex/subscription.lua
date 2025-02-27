@@ -7,13 +7,13 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 --- @field _unsubscribe function
 local Subscription = {}
 Subscription.__index = Subscription
-Subscription.__tostring = util.constant('Subscription')
+Subscription.__tostring = util.Constant('Subscription')
 Subscription.___isa = { Subscription }
 
 --- Creates a new Subscription.
 --- @param teardown fun(subscription: Subscription)? The action to run when the subscription is unsubscribed. It will only be run once.
 --- @return Subscription
-function Subscription.create(teardown)
+function Subscription.Create(teardown)
     local self = {
         _unsubscribe = teardown,
         _unsubscribed = false,
@@ -24,13 +24,14 @@ function Subscription.create(teardown)
     return setmetatable(self, Subscription)
 end
 
----@return boolean
-function Subscription:isUnsubscribed()
+--- Returns whether the subscription is unsubscribed.
+--- @return boolean
+function Subscription:IsUnsubscribed()
     return self._unsubscribed
 end
 
 --- Unsubscribes the subscription, performing any necessary cleanup work.
-function Subscription:unsubscribe()
+function Subscription:Unsubscribe()
     if self._unsubscribed then return end
 
     -- copy some references which will be needed later
@@ -45,17 +46,17 @@ function Subscription:unsubscribe()
     -- to remove themselves from this subscription will gracefully noop
     self._subscriptions = nil
 
-    if util.isa(_parentOrParents, Subscription) then
-        _parentOrParents:remove(self)
+    if util.IsA(_parentOrParents, Subscription) then
+        _parentOrParents:Remove(self)
     elseif _parentOrParents ~= nil then
         for _, parent in ipairs(_parentOrParents) do
-            parent:remove(self)
+            parent:Remove(self)
         end
     end
 
     local errors
 
-    if util.isCallable(_unsubscribe) then
+    if util.IsCallable(_unsubscribe) then
         local success, msg = pcall(_unsubscribe, self)
 
         if not success then
@@ -71,7 +72,7 @@ function Subscription:unsubscribe()
             local sub = _subscriptions[index]
 
             if type(sub) == 'table' then
-                local success, msg = pcall(function() sub:unsubscribe() end)
+                local success, msg = pcall(function() sub:Unsubscribe() end)
 
                 if not success then
                     errors = errors or {}
@@ -88,31 +89,32 @@ function Subscription:unsubscribe()
     end
 end
 
----@param teardown function|Subscription
----@return Subscription
-function Subscription:add(teardown)
+--- Adds a teardown function or subscription to this subscription.
+--- @param teardown function|Subscription
+--- @return Subscription
+function Subscription:Add(teardown)
     if not teardown then
         return Subscription.EMPTY
     end
 
     local subscription = teardown
 
-    if util.isCallable(teardown)
-        and not util.isa(teardown, Subscription)
+    if util.IsCallable(teardown)
+        and not util.IsA(teardown, Subscription)
     then
-        subscription = Subscription.create(teardown --[[@as function]])
+        subscription = Subscription.Create(teardown --[[@as function]])
     end
 
     if type(subscription) == 'table' then
-        if subscription == self or subscription._unsubscribed or type(subscription.unsubscribe) ~= 'function' then
+        if subscription == self or subscription._unsubscribed or type(subscription.Unsubscribe) ~= 'function' then
             -- This also covers the case where `subscription` is `Subscription.EMPTY`, which is always unsubscribed
             return subscription
         elseif self._unsubscribed then
-            subscription:unsubscribe()
+            subscription:Unsubscribe()
             return subscription
-        elseif not util.isa(teardown, Subscription) then
+        elseif not util.IsA(teardown, Subscription) then
             local tmp = subscription
-            subscription = Subscription.create()
+            subscription = Subscription.Create()
             subscription._subscriptions = { tmp }
         end
     else
@@ -123,7 +125,7 @@ function Subscription:add(teardown)
 
     if _parentOrParents == nil then
         subscription._parentOrParents = self
-    elseif util.isa(_parentOrParents, Subscription) then
+    elseif util.IsA(_parentOrParents, Subscription) then
         if _parentOrParents == self then
             return subscription
         end
@@ -156,8 +158,9 @@ function Subscription:add(teardown)
     return subscription
 end
 
----@param subscription Subscription
-function Subscription:remove(subscription)
+--- Removes a subscription from this subscription.
+--- @param subscription Subscription
+function Subscription:Remove(subscription)
     local subscriptions = self._subscriptions
 
     if subscriptions then
@@ -173,6 +176,6 @@ end
 Subscription.EMPTY = (function(sub)
     sub._unsubscribed = true
     return sub
-end)(Subscription.create())
+end)(Subscription.Create())
 
 return Subscription

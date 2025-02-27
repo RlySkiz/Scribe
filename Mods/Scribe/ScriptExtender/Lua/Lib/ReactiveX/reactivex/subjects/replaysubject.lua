@@ -9,12 +9,12 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 --- @field bufferSize integer
 local ReplaySubject = setmetatable({}, Subject)
 ReplaySubject.__index = ReplaySubject
-ReplaySubject.__tostring = util.constant('ReplaySubject')
+ReplaySubject.__tostring = util.Constant('ReplaySubject')
 
 --- Creates a new ReplaySubject.
 --- @param bufferSize number [or 10] - The number of values to send to new subscribers. If nil, an infinite buffer is used (note that this could lead to memory issues).
 --- @return ReplaySubject
-function ReplaySubject.create(bufferSize)
+function ReplaySubject.Create(bufferSize)
     local self = {
         observers = {},
         stopped = false,
@@ -30,19 +30,20 @@ end
 --- @param observerOrNext function|Observer - Called when the ReplaySubject produces a value.
 --- @param onError function? - Called when the ReplaySubject terminates due to an error.
 --- @param onCompleted function? - Called when the ReplaySubject completes normally.
-function ReplaySubject:subscribe(observerOrNext, onError, onCompleted)
+--- @return Subscription
+function ReplaySubject:Subscribe(observerOrNext, onError, onCompleted)
     local observer
 
-    if util.isa(observerOrNext, Observer) then
+    if util.IsA(observerOrNext, Observer) then
         observer = observerOrNext --[[@as Observer]]
     else
-        observer = Observer.create(observerOrNext, onError, onCompleted)
+        observer = Observer.Create(observerOrNext, onError, onCompleted)
     end
 
-    local subscription = Subject.subscribe(self, observer)
+    local subscription = Subject.Subscribe(self, observer)
 
     for i = 1, #self.buffer do
-        observer:onNext(util.unpack(self.buffer[i]))
+        observer:OnNext(util.Unpack(self.buffer[i]))
     end
 
     return subscription
@@ -51,15 +52,15 @@ end
 --- Pushes zero or more values to the ReplaySubject. They will be broadcasted to all Observers.
 --- @generic T : any
 --- @param ... T
-function ReplaySubject:onNext(...)
-    table.insert(self.buffer, util.pack(...))
+function ReplaySubject:OnNext(...)
+    table.insert(self.buffer, util.Pack(...))
     if self.bufferSize and #self.buffer > self.bufferSize then
         table.remove(self.buffer, 1)
     end
 
-    return Subject.onNext(self, ...)
+    return Subject.OnNext(self, ...)
 end
 
-ReplaySubject.__call = ReplaySubject.onNext
+ReplaySubject.__call = ReplaySubject.OnNext
 
 return ReplaySubject

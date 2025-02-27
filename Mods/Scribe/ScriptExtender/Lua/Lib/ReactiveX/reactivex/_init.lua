@@ -24,7 +24,7 @@ local BehaviorSubject = Ext.Require("Lib/ReactiveX/reactivex/subjects/behaviorsu
 local ReplaySubject = Ext.Require("Lib/ReactiveX/reactivex/subjects/replaysubject.lua")
 
 -- just need to touch a lift() to trigger AnonymousSubject's lazy load, only needed because separated library dependency
-local lazyLoadFix = Subject.create():count(function() return 42 end)
+local lazyLoadFix = Subject.Create():Count(function() return 42 end)
 
 ---@class RX
 ---@field Subscription Subscription

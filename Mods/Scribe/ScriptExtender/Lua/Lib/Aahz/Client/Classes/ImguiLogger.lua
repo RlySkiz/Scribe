@@ -187,6 +187,9 @@ end
 ---@param headerCell ExtuiTableCell
 ---@param filterName string
 function ImguiLogger:AddNewColumnFilter(headerCell, filterName)
+    
+    if filterName == nil then return end
+
     if headerCell.UserData.FilterCheckboxes[filterName] == nil then
         local pop = headerCell.UserData.Popup
         headerCell.UserData.FilterCheckboxes[filterName] = pop:AddCheckbox(filterName, true)

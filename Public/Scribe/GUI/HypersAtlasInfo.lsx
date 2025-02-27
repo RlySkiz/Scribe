@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+    <version major="4" minor="0" revision="6" build="5" />
+    <region id="TextureAtlasInfo">
+        <node id="root">
+            <children>
+                <node id="TextureAtlasIconSize">
+                    <attribute id="Height" value="96" type="int32" />
+                    <attribute id="Width" value="96" type="int32" />
+                </node>
+                <node id="TextureAtlasPath">
+                    <attribute id="Path" type="LSString"
+                        value="Assets\Textures\Icons\Hypers.dds" />
+                    <attribute id="UUID" type="FixedString"
+                        value="bd730cc2-bca0-4a3f-a700-85e81baa7e1e" />
+                </node>
+                <node id="TextureAtlasTextureSize">
+                    <attribute id="Height" type="int32" value="288" />
+                    <attribute id="Width" type="int32" value="288" />
+                </node>
+            </children>
+        </node>
+    </region>
+    <region id="IconUVList">
+        <node id="root">
+            <children>
+                <node id="IconUV">
+                    <attribute id="MapKey" value="hypers" type="FixedString" />
+                    <attribute id="Width" value="96" type="float" />
+                    <attribute id="Height" value="96" type="float" />
+                    <attribute id="U1" value="0" type="float" />
+                    <attribute id="V1" value="0" type="float" />
+                    <attribute id="U2" value="0.3333333" type="float" />
+                    <attribute id="V2" value="0.3333333" type="float" />
+                </node>
+            </children>
+        </node>
+    </region>
+</save>

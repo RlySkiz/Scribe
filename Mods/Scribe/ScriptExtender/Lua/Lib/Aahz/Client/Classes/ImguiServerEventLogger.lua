@@ -1,4 +1,7 @@
+local NetworkEvents = Ext.Require("Shared/Classes/NetworkEvents.lua")
+
 --- @class ImguiServerEventLogger : ImguiLogger
+--- @field SettingsMenu ExtuiMenu
 --- @field Window ExtuiChildWindow
 --- @field Ready boolean
 ImguiServerEventLogger = _Class:Create("ImguiServerEventLogger", "ImguiLogger", {
@@ -13,16 +16,19 @@ function ImguiServerEventLogger:Init()
         end
     end)
 end
+
 function ImguiServerEventLogger:Receive(eventName, eventTable)
     -- RPrint("Received event: "..eventName)
     -- RPrintS(eventTable)
     local count = 0
     local detailString = ""
+
     for argName, value in pairs(eventTable) do
         if count ~= 0 then detailString = detailString.."\n" end --newline successive entries
         count = count + 1
         detailString = string.format("%s%s: %s", detailString, argName, value)
     end
+
     local filterableValue = eventTable.QuestID and "Quest"
         or eventTable.SubQuestID and "SubQuest"
         or eventTable.Object and "EntityEvent"
@@ -41,21 +47,46 @@ function ImguiServerEventLogger:Receive(eventName, eventTable)
     self:AddLogEntry(entry)
 end
 
-
-function ImguiServerEventLogger:CreateTab(tab)
+function ImguiServerEventLogger:CreateTab(tab, mainMenu)
     if self.Window ~= nil then return end -- only create once
     if self.ContainerTab ~= nil then return end
     self.ContainerTab = tab
     self.Window = self.ContainerTab:AddChildWindow("Scribe_ServerEventLogger")
     self.Window.IDContext = "Scribe_ServerEventLogger"
-    self.Window.Size = {610,625}
-    Imgui.NewStyling(self.Window)
+    self.Window.Size = {-1, -1}
     self:InitializeLayout()
     self:RebuildLog()
+    self.SettingsMenu = mainMenu:AddMenu("Server Event Settings")
+    mainMenu.UserData.RegisterSubMenu(self.SettingsMenu)
+    self.SettingsMenu:AddItem("Placeholder")
+    tab.OnActivate = function()
+        if mainMenu and mainMenu.UserData then
+            mainMenu.UserData.ActivateSubMenu(self.SettingsMenu)
+        end
+    end
 end
 
 function ImguiServerEventLogger:InitializeLayout()
     if self.Ready then return end -- only initialize once
+
+    local startstop = self.Window:AddButton("Start/Stop")
+    local clear = self.Window:AddButton("Clear")
+    clear.SameLine = true
+
+    local run = true
+    startstop.OnClick = function(b)
+        if run then
+            NetworkEvents.ServerEventWatcher_StartStop:SendToServer({Stop = true})
+            run = false
+        else
+            NetworkEvents.ServerEventWatcher_StartStop:SendToServer({Start = true})
+            run = true
+        end
+    end
+    clear.OnClick = function(b)
+        self.LogEntries = {}
+        self:RebuildLog()
+    end
 
     local childWin = self.Window:AddChildWindow("Scribe_ServerEventLoggerChildWin")
 
@@ -64,7 +95,8 @@ function ImguiServerEventLogger:InitializeLayout()
     -- childWin.ResizeY = true -- fucks with scroll
     -- childWin.AlwaysVerticalScrollbar = true
     -- childWin.AlwaysUseWindowPadding = true
-    childWin.Size = {600, 560}
+    childWin.Size = {-1, -1}
+
 
     local logTable = childWin:AddTable("Scribe_ServerEventLoggerTable", 3)
     -- logTable.Size = {438, 360}

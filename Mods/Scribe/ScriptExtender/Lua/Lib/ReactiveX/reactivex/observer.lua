@@ -5,7 +5,7 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 local Subscription = Ext.Require("Lib/ReactiveX/reactivex/subscription.lua")
 
 --- Observers are simple objects that receive values from Observables.
---- @class Observer : Subscription --hmm
+--- @class Observer : Subscription
 --- @field _onNext fun(values:...)
 --- @field _onError fun(errorMessage:any)
 --- @field _onCompleted fun()
@@ -13,21 +13,18 @@ local Subscription = Ext.Require("Lib/ReactiveX/reactivex/subscription.lua")
 --- @field _unsubscribed boolean
 local Observer = setmetatable({}, Subscription)
 Observer.__index = Observer
-Observer.__tostring = util.constant('Observer')
+Observer.__tostring = util.Constant('Observer')
 
 --- Creates a new Observer.
 --- @generic T : any
 --- @param ... function[] - onNext, onError, onCompleted
--- - @param onNext fun(T) Called when the Observable produces a value.
--- - @param onError fun(errorMessage: string)? Called when the Observable terminates due to an error.
--- - @param onCompleted fun()? Called when the Observable completes normally.
 --- @overload fun(onNext:fun(T), onError:fun(errorMessage:string)?, onCompleted:fun()?)
 --- @return Observer
-function Observer.create(...)
+function Observer.Create(...)
     local args = { ... }
     local argsCount = select('#', ...)
     local destinationOrNext, onError, onCompleted = args[1], args[2], args[3]
-    local self = setmetatable(Subscription.create(), Observer) --[[@as Observer]]
+    local self = setmetatable(Subscription.Create(), Observer) --[[@as Observer]]
     self.stopped = false
     self._onNext = Observer.EMPTY._onNext
     self._onError = Observer.EMPTY._onError
@@ -35,7 +32,7 @@ function Observer.create(...)
     self._rawCallbacks = {}
 
     if argsCount > 0 then
-        if util.isa(destinationOrNext, Observer) then
+        if util.IsA(destinationOrNext, Observer) then
             self._onNext = destinationOrNext._onNext
             self._onError = destinationOrNext._onError
             self._onCompleted = destinationOrNext._onCompleted
@@ -69,7 +66,7 @@ end
 --- Pushes zero or more values to the Observer.
 --- @generic T : any
 --- @param ... T values
-function Observer:onNext(...)
+function Observer:OnNext(...)
     if not self.stopped then
         self._onNext(...)
     end
@@ -77,37 +74,37 @@ end
 
 --- Notify the Observer that an error has occurred.
 ---@param message string - A string describing what went wrong.
-function Observer:onError(message)
+function Observer:OnError(message)
     if not self.stopped then
         self.stopped = true
         self._onError(message)
-        self:unsubscribe()
+        self:Unsubscribe()
     end
 end
 
 --- Notify the Observer that the sequence has completed and will produce no more values.
-function Observer:onCompleted()
+function Observer:OnCompleted()
     if not self.stopped then
         self.stopped = true
         self._onCompleted()
-        self:unsubscribe()
+        self:Unsubscribe()
     end
 end
 
-function Observer:unsubscribe()
+function Observer:Unsubscribe()
     if self._unsubscribed then
         return
     end
 
     self.stopped = true
-    Subscription.unsubscribe(self)
+    Subscription.Unsubscribe(self)
 end
 
 Observer.EMPTY = {
     _unsubscribed = true,
-    _onNext = util.noop,
+    _onNext = util.Noop,
     _onError = error,
-    _onCompleted = util.noop,
+    _onCompleted = util.Noop,
 }
 
 return Observer

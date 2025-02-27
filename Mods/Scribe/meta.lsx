@@ -7,7 +7,7 @@
         <node id="ModuleInfo">
           <attribute id="UUID" type="FixedString" value="84b2cdba-ad21-4d8c-97d6-c09b95a6d9b4" />
           <attribute id="Name" type="LSString" value="Scribe" />
-          <attribute id="Author" type="LSString" value="Skiz and Satan" />
+          <attribute id="Author" type="LSString" value="Skiz, Satan, Aahz and Norbyte" />
           <attribute id="Description" type="LSString" value="Mousover Inspector" />
           <attribute id="Folder" type="LSString" value="Scribe" />
           <attribute id="CharacterCreationLevelName" type="FixedString" value="" />
@@ -20,10 +20,10 @@
           <attribute id="StartupLevelName" type="FixedString" value="" />
           <attribute id="Tags" type="LSString" value="" />
           <attribute id="Type" type="FixedString" value="" />
-          <attribute id="Version64" type="int64" value="36028797018963968" />
+          <attribute id="Version64" type="int64" value="72057594037927936" />
           <children>
             <node id="PublishVersion">
-              <attribute id="Version64" type="int64" value="36028797018963968" />
+              <attribute id="Version64" type="int64" value="72057594037927936" />
             </node>
             <node id="TargetModes">
               <children>

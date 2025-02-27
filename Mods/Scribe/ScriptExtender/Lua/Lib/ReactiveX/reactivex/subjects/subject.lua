@@ -15,13 +15,13 @@ local SubjectSubscription = Ext.Require("Lib/ReactiveX/reactivex/subjectsubscrip
 --- @field thrownError string|nil
 local Subject = setmetatable({}, Observable)
 Subject.__index = Subject
-Subject.__tostring = util.constant('Subject')
+Subject.__tostring = util.Constant('Subject')
 table.insert(Subject.___isa, Subject)
 
 --- Creates a new Subject.
 --- @return Subject
-function Subject.create()
-    local baseObservable = Observable.create()
+function Subject.Create()
+    local baseObservable = Observable.Create()
     local self = setmetatable(baseObservable, Subject)
     self.observers = {}
     self.stopped = false
@@ -33,8 +33,8 @@ end
 --- @private Creates a new Subject, with this Subject as the source. It must be used internally by operators to create a proper chain of observables.
 --- @param createObserver function - observer factory function
 --- @return Subject - a new Subject chained with the source Subject
-function Subject:lift(createObserver)
-    return AnonymousSubject.create(self, createObserver)
+function Subject:Lift(createObserver)
+    return AnonymousSubject.Create(self, createObserver)
 end
 
 --- @protected Creates a new Observer or uses the existing one, and registers Observer handlers for notifications the Subject will emit.
@@ -44,37 +44,37 @@ function Subject:_subscribe(observer)
     if self._unsubscribed then
         error('Object is unsubscribed')
     elseif self.hasError then
-        observer:onError(self.thrownError)
+        observer:OnError(self.thrownError)
         return Subscription.EMPTY
     elseif self.stopped then
-        observer:onCompleted()
+        observer:OnCompleted()
         return Subscription.EMPTY
     else
         table.insert(self.observers, observer)
-        return SubjectSubscription.create(self, observer)
+        return SubjectSubscription.Create(self, observer)
     end
 end
 
 --- Pushes zero or more values to the Subject. They will be broadcasted to all Observers.
 ---@generic T : any
 ---@param ... T
-function Subject:onNext(...)
+function Subject:OnNext(...)
     if self._unsubscribed then
         error('Object is unsubscribed')
     end
 
     if not self.stopped then
-        local observers = { util.unpack(self.observers) }
+        local observers = { util.Unpack(self.observers) }
 
         for i = 1, #observers do
-            observers[i]:onNext(...)
+            observers[i]:OnNext(...)
         end
     end
 end
 
 --- Signal to all Observers that an error has occurred.
 ---@param message string - A string describing what went wrong.
-function Subject:onError(message)
+function Subject:OnError(message)
     if self._unsubscribed then
         error('Object is unsubscribed')
     end
@@ -83,7 +83,7 @@ function Subject:onError(message)
         self.stopped = true
 
         for i = #self.observers, 1, -1 do
-            self.observers[i]:onError(message)
+            self.observers[i]:OnError(message)
         end
 
         self.observers = {}
@@ -91,7 +91,7 @@ function Subject:onError(message)
 end
 
 --- Signal to all Observers that the Subject will not produce any more values.
-function Subject:onCompleted()
+function Subject:OnCompleted()
     if self._unsubscribed then
         error('Object is unsubscribed')
     end
@@ -100,13 +100,13 @@ function Subject:onCompleted()
         self.stopped = true
 
         for i = #self.observers, 1, -1 do
-            self.observers[i]:onCompleted()
+            self.observers[i]:OnCompleted()
         end
 
         self.observers = {}
     end
 end
 
-Subject.__call = Subject.onNext
+Subject.__call = Subject.OnNext
 
 return Subject

@@ -14,12 +14,12 @@ local Subscription = Ext.Require("Lib/ReactiveX/reactivex/subscription.lua")
 --- @field _updating boolean
 local CooperativeScheduler = {}
 CooperativeScheduler.__index = CooperativeScheduler
-CooperativeScheduler.__tostring = util.constant('CooperativeScheduler')
+CooperativeScheduler.__tostring = util.Constant('CooperativeScheduler')
 
 --- Creates a new CooperativeScheduler.
 --- @param currentTime number? [or 0] - A time to start the scheduler at.
 --- @return CooperativeScheduler
-function CooperativeScheduler.create(currentTime)
+function CooperativeScheduler.Create(currentTime)
     local self = {
         tasks = {},
         currentTime = currentTime or 0,
@@ -34,7 +34,7 @@ end
 --- @param action function - The function to execute. Will be converted into a coroutine. The coroutine may yield execution back to the scheduler with an optional number, which will put it to sleep for a time period.
 --- @param delay number? [or 0]- Delay execution of the action by a virtual time period.
 --- @return Subscription
-function CooperativeScheduler:schedule(action, delay)
+function CooperativeScheduler:Schedule(action, delay)
     local task = {
         thread = coroutine.create(action),
         due = self.currentTime + (delay or 0)
@@ -42,14 +42,13 @@ function CooperativeScheduler:schedule(action, delay)
 
     table.insert(self.tasks, task)
 
-    return Subscription.create(function()
-        return self:unschedule(task)
+    return Subscription.Create(function()
+        return self:Unschedule(task)
     end)
 end
 
-
 ---@param task SchedulerTask
-function CooperativeScheduler:unschedule(task)
+function CooperativeScheduler:Unschedule(task)
     for i = 1, #self.tasks do
         if self.tasks[i] == task then
             self:_safeRemoveTaskByIndex(i)
@@ -60,7 +59,7 @@ end
 
 --- Triggers an update of the CooperativeScheduler. The clock will be advanced and the scheduler will run any coroutines that are due to be run.
 --- @param delta number [or 0] - An amount of time to advance the clock by. It is common to pass in the time in seconds or milliseconds elapsed since this function was last called.
-function CooperativeScheduler:update(delta)
+function CooperativeScheduler:Update(delta)
     local throwError, errorMsg = false, nil
 
     self._updating = true
@@ -104,7 +103,7 @@ end
 
 --- Returns whether or not the CooperativeScheduler's queue is empty.
 ---@return boolean
-function CooperativeScheduler:isEmpty()
+function CooperativeScheduler:IsEmpty()
     return #self.tasks == 0
 end
 
@@ -117,6 +116,7 @@ function CooperativeScheduler:_safeRemoveTaskByIndex(i)
         table.remove(self.tasks, i)
     end
 end
+
 ---@private
 function CooperativeScheduler:_commitPendingRemovals()
     for i = #self.tasks, 1, -1 do

@@ -5,17 +5,17 @@ local util = Ext.Require("Lib/ReactiveX/reactivex/util.lua")
 --- @class ImmediateScheduler
 local ImmediateScheduler = {}
 ImmediateScheduler.__index = ImmediateScheduler
-ImmediateScheduler.__tostring = util.constant('ImmediateScheduler')
+ImmediateScheduler.__tostring = util.Constant('ImmediateScheduler')
 
 --- Creates a new ImmediateScheduler
 --- @return ImmediateScheduler
-function ImmediateScheduler.create()
+function ImmediateScheduler.Create()
     return setmetatable({}, ImmediateScheduler)
 end
 
 --- Schedules a function to be run on the scheduler. It is executed immediately.
 --- @param action function - The function to execute.
-function ImmediateScheduler:schedule(action)
+function ImmediateScheduler:Schedule(action)
     action()
 end
 
