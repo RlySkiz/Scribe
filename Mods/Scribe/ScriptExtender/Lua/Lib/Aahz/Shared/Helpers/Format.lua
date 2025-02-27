@@ -113,7 +113,7 @@ function Helpers.GetEntityName(e)
     elseif e.Uuid ~= nil then
         return e.Uuid.EntityUuid
     else
-        return nil
+        return NameGen:GenerateOrGet(e)
     end
 end
 

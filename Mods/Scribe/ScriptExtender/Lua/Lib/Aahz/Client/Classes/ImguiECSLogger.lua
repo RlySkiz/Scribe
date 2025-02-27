@@ -44,6 +44,8 @@
 --- @field IgnoreDualPane ImguiDualPane
 --- @field IgnoredComponents table<string, boolean>
 --- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
+--- @field RunningHue integer
+--- @field EntityColorMap table<integer, vec4>
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
     FrameNo = 1,
@@ -83,6 +85,8 @@ ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     ApplyWatchFilters = false,
     AutoInspect = false,
     AutoDump = false,
+    RunningHue = 0,
+    EntityColorMap = {}
 })
 
 local private = {
@@ -507,13 +511,17 @@ function ImguiECSLogger:OnTick()
                 if changes.Destroy then msg = msg .. "\x1b[31m Destroyed" end
                 print(msg)
             end
+            local entityShowName = Helpers.GetEntityName(entity)
             local entityName = self:GetEntityName(entity)
+            local useShowName = entityName:sub(1, 8) == "Entity (" or entityName == ""
             local inspectThisEntity = false
             local dumpThisEntity = false
 
             local newEntry = EntityLogEntry:New{
                 Entity = entity,
                 TimeStamp = self.FrameNo,
+                ShowName = useShowName and entityShowName or entityName,
+                ShowColor = useShowName and self:GetEntityColor(entity) or Imgui.Colors.White,
                 _Entry = entityName,
                 _FilterableEntry = entityName,
                 _Category = "Unknown"
@@ -635,6 +643,7 @@ end
 
 ---@param entity EntityHandle
 function ImguiECSLogger:GetEntityNameDecorated(entity)
+    -- Use old GetEntityName on purpose for console log
     local name = self:GetEntityName(entity)
 
     if name ~= nil and #name > 0 then
@@ -700,6 +709,25 @@ function ImguiECSLogger:IsComponentChangePrintable(entity, component)
     if self.IncludedOnly and self.IncludeComponents[component.Name] ~= true then return false end
 
     return true
+end
+
+--- Gets associated color for this entity, generating if necessary
+---@param entity EntityHandle
+---@return vec4
+function ImguiECSLogger:GetEntityColor(entity)
+    if not entity then return Imgui.Colors.White end
+    local handle = Ext.Utils.HandleToInteger(entity)
+    if self.EntityColorMap[handle] then return self.EntityColorMap[handle] end
+
+    -- Use current hue to generate RGB
+    local r,g,b = Helpers.Color.HSVToRGB(self.RunningHue,.65,1)
+    -- Increment hue by about 36 degrees
+    self.RunningHue = (self.RunningHue + 36) % 360
+    -- Normalize RGB (0~255 to 0~1)
+    local color = Helpers.Color.NormalizedRGBA(r,g,b, 1)
+    -- Assign and return
+    self.EntityColorMap[handle] = color
+    return color
 end
 
 private.SpamComponents = {
