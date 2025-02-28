@@ -63,7 +63,7 @@ ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     -- ComponentCreations = true,
     -- ComponentDeletions = true,
 
-    -- Exclusions
+    -- Entity "shape" Exclusions
     ExcludeCrowds = true,
     ExcludeStatuses = true,
     ExcludeBoosts = true,
@@ -90,8 +90,11 @@ ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
 })
 
 local private = {
-	SpamComponents = {},
-	StatusComponents = {},
+    SpamEntities = {
+        ["783884b2-fbee-4376-9c18-6fd99d225ce6"] = true, -- Annoying mephit spawn helper
+    },
+    WatchedComponents = {},
+    IgnoredComponents = {},
     KnownComponents = {},
     UnknownComponents = {},
 }
@@ -143,6 +146,15 @@ function ImguiECSLogger:InitializeLayout()
     printToConsoleChk.OnChange = function(c)
         self.PrintChangesToConsole = c.Checked
     end
+    local verboseChk = self.SettingsMenu:AddCheckbox("Verbose Log Entries", self.Verbose)
+    verboseChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    verboseChk.IDContext = "Scribe_ECSLoggerVerboseChk"
+    verboseChk:Tooltip():AddText("\t".."Entries will expand and display components at the top-level of log, in each row.")
+
+    verboseChk.OnChange = function(c)
+        self.Verbose = c.Checked
+        self:RebuildLog()
+    end
 
     self:SetupToggles()
     self:CreateComponentWatchWindow()
@@ -179,16 +191,10 @@ function ImguiECSLogger:InitializeLayout()
     local ignoreSettingsMenu = self.SettingsMenu:AddMenu("Ignored Components")
     local ignoreCompButton = ignoreSettingsMenu:AddItem("Open Ignore Settings")
     ignoreCompButton.OnClick = function() self.IgnoreComponentWindow.Open = not self.IgnoreComponentWindow.Open end
-    local ignoreSpam = ignoreSettingsMenu:AddItem("Ignore known spam components")
-    local ignoreStatus = ignoreSettingsMenu:AddItem("Ignore status components")
+    local ignoreSpam = ignoreSettingsMenu:AddItem("Ignore all common spam components")
     ignoreSpam.OnClick = function()
-        for spam, _ in pairs(private.SpamComponents) do
-            self.IgnoreDualPane:AddOption(spam, { TooltipText = "Known spam component" }, true)
-        end
-    end
-    ignoreStatus.OnClick = function()
-        for sc, _ in pairs(private.StatusComponents) do
-            self.IgnoreDualPane:AddOption(sc, { TooltipText = "Spammy status component changes" }, true)
+        for _,g in ipairs(IgnoreGroups) do
+            g:SelectInDualPane(self.IgnoreDualPane)
         end
     end
 
@@ -347,9 +353,27 @@ function ImguiECSLogger:CreateComponentWatchWindow()
     self.WatchComponentWindow = win
     self.WatchDualPane = dualPane
     self.WatchDualPane.ChangesSubject:Subscribe(function(c)
-        private.WatchedComponents = self.WatchDualPane:GetOptionsMap()
+        private.WatchedComponents = self.WatchDualPane:GetSelectedMap()
     end)
-    private.WatchedComponents = self.WatchDualPane:GetOptionsMap() -- init
+    private.WatchedComponents = self.WatchDualPane:GetSelectedMap() -- init
+end
+function ImguiECSLogger:WatchComponent(name)
+    if type(name) ~= "string" then return SWarn("ECS: Attempted to watch component without name.") end
+    if self.WatchDualPane then
+        self.WatchDualPane:AddOption(name, nil, true)
+        self:RebuildLog()
+    else
+        return SWarn("ECS: Component Watch window now initialized yet.")
+    end
+end
+function ImguiECSLogger:IgnoreComponent(name)
+    if type(name) ~= "string" then return SWarn("ECS: Attempted to ignore component without name.") end
+    if self.IgnoreDualPane then
+        self.IgnoreDualPane:AddOption(name, nil, true)
+        self:RebuildLog()
+    else
+        return SWarn("ECS: Ignore window not initialized yet.")
+    end
 end
 
 function ImguiECSLogger:CreateIgnoredComponentsWindow()
@@ -377,23 +401,26 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
             Highlight = true,
         })
     end
-    if self.ExcludeSpamComponents then
-        for spam, _ in pairs(private.SpamComponents) do
-            dualPane:AddOption(spam, { TooltipText = "Known spam component" }, true)
-        end
+
+    -- Initialize or grab latest IgnoredComponents
+    local lastIgnored = Cache:GetOr(nil, CacheData.LastIgnoredComponents)
+    if not lastIgnored then
+        -- nothing cached, first run likely, initialize with defaults
+        lastIgnored = ComponentIgnoreGroup.GetAllDefaults()
+        
+        Cache:AddOrChange(CacheData.LastIgnoredComponents, lastIgnored)
     end
-    if self.ExcludeStatuses then
-        for sc, _ in pairs(private.StatusComponents) do
-            dualPane:AddOption(sc, { TooltipText = "Spammy status component changes" }, true)
-        end
+    -- Select in dual pane
+    for key,_ in pairs(lastIgnored) do
+        dualPane:AddOption(key, nil, true)
     end
 
     self.IgnoreComponentWindow = win
     self.IgnoreDualPane = dualPane
     self.IgnoreDualPane.ChangesSubject:Subscribe(function(c)
-        private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap()
+        private.IgnoredComponents = self.IgnoreDualPane:GetSelectedMap()
     end)
-    private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap() -- init
+    private.IgnoredComponents = lastIgnored
 
     -- Now that dual pane is created and filled, build out group buttons
     -- Table of ignore category buttons
@@ -433,8 +460,12 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
 
         table.insert(btns, btn)
     end
-    -- Check button status and color based on selection
-    local function checkButtonStatus()
+
+    local function onIgnoreSettle()
+        -- Cache current IgnoredComponents
+        Cache:AddOrChange(CacheData.LastIgnoredComponents, private.IgnoredComponents)
+
+        -- Check button status and color based on selection
         local options = dualPane:GetOptionsMap()
         ---@param btn ExtuiButton
         for _, btn in ipairs(btns) do
@@ -447,11 +478,11 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
             end
         end
     end
-    dualPane.OnSettle:Subscribe(checkButtonStatus)
+    dualPane.OnSettle:Subscribe(onIgnoreSettle)
 
     -- Hmm, shouldn't be necessary, but left pane not visible and buttons didn't update --FIXME
     dualPane:Refresh()
-    checkButtonStatus()
+    onIgnoreSettle()
 end
 
 ---@param entry EntityLogEntry
@@ -682,6 +713,8 @@ function ImguiECSLogger:EntityHasPrintableChanges(entity, changes)
 
     if self.ExcludeCrowds and entity:HasRawComponent("eoc::crowds::AppearanceComponent") then return false end
 
+    if self.ExcludeSpamEntities and entity.Uuid and private.SpamEntities[entity.Uuid.EntityUuid] then return false end
+
     for _,component in pairs(changes.Components) do
         if self:IsComponentChangePrintable(entity, component) then
             return true
@@ -701,11 +734,7 @@ function ImguiECSLogger:IsComponentChangePrintable(entity, component)
     if self.ComponentDeletions ~= nil and self.ComponentDeletions ~= component.Destroy then return false end
     if self.ComponentReplications ~= nil and self.ComponentReplications ~= component.Replicate then return false end
 
-    if self.ExcludeSpamComponents and private.SpamComponents[component.Name] then return false end
-    if self.ExcludeSpamEntities and entity.Uuid and private.SpamEntities[entity.Uuid.EntityUuid] then return false end
-    if self.ExcludeStatuses and private.StatusComponents[component.Name] then return false end
-
-    if self.ExcludeComponents[component.Name] == true then return false end
+    if private.IgnoredComponents[component.Name] == true then return false end
     if self.IncludedOnly and self.IncludeComponents[component.Name] ~= true then return false end
 
     return true
@@ -729,141 +758,3 @@ function ImguiECSLogger:GetEntityColor(entity)
     self.EntityColorMap[handle] = color
     return color
 end
-
-private.SpamComponents = {
-    ['eoc::PathingDistanceChangedOneFrameComponent'] = true,
-    ['eoc::PathingMovementSpeedChangedOneFrameComponent'] = true,
-    ['eoc::animation::AnimationInstanceEventsOneFrameComponent'] = true,
-    ['eoc::animation::BlueprintRefreshedEventOneFrameComponent'] = true,
-    ['eoc::animation::GameplayEventsOneFrameComponent'] = true,
-    ['eoc::animation::TextKeyEventsOneFrameComponent'] = true,
-    ['eoc::animation::TriggeredEventsOneFrameComponent'] = true,
-    ['ls::AnimationBlueprintLoadedEventOneFrameComponent'] = true,
-    ['ls::RotateChangedOneFrameComponent'] = true,
-    ['ls::TranslateChangedOneFrameComponent'] = true,
-    ['ls::VisualChangedEventOneFrameComponent'] = true,
-    ['ls::animation::LoadAnimationSetRequestOneFrameComponent'] = true,
-    ['ls::animation::RemoveAnimationSetsRequestOneFrameComponent'] = true,
-    ['ls::animation::LoadAnimationSetGameplayRequestOneFrameComponent'] = true,
-    ['ls::animation::RemoveAnimationSetsGameplayRequestOneFrameComponent'] = true,
-    ['ls::ActiveVFXTextKeysComponent'] = true,
-    ['ls::InvisibilityVisualComponent'] = true,
-    ['ecl::InvisibilityVisualComponent'] = true,
-    ['ls::LevelComponent'] = true,
-    ['ls::LevelIsOwnerComponent'] = true,
-    ['ls::IsGlobalComponent'] = true,
-    ['ls::SavegameComponent'] = true,
-    ['ls::SaveWithComponent'] = true,
-    ['ls::TransformComponent'] = true,
-    ['ls::ParentEntityComponent'] = true,
-
-    -- Client
-    ['ecl::level::PresenceComponent'] = true,
-    ['ecl::character::GroundMaterialChangedEventOneFrameComponent'] = true,
-
-    -- Replication
-    ['ecs::IsReplicationOwnedComponent'] = true,
-    ['esv::replication::PeersInRangeComponent'] = true,
-
-    -- SFX
-    ['ls::SoundMaterialComponent'] = true,
-    ['ls::SoundComponent'] = true,
-    ['ls::SoundActivatedEventOneFrameComponent'] = true,
-    ['ls::SoundActivatedComponent'] = true,
-    ['ls::SoundUsesTransformComponent'] = true,
-    ['ecl::sound::CharacterSwitchDataComponent'] = true,
-    ['ls::SkeletonSoundObjectTransformComponent'] = true,
-
-    -- Sight & co
-    ['eoc::sight::EntityViewshedComponent'] = true,
-    ['esv::sight::EntityViewshedContentsChangedEventOneFrameComponent'] = true,
-    ['esv::sight::AiGridViewshedComponent'] = true,
-    ['esv::sight::SightEventsOneFrameComponent'] = true,
-    ['esv::sight::ViewshedParticipantsAddedEventOneFrameComponent'] = true,
-    ['eoc::sight::DarkvisionRangeChangedEventOneFrameComponent'] = true,
-    ['eoc::sight::DataComponent'] = true,
-
-    -- Common events/updates
-    ['eoc::inventory::MemberTransformComponent'] = true,
-    ['eoc::translate::ChangedEventOneFrameComponent'] = true,
-    ['esv::status::StatusEventOneFrameComponent'] = true,
-    ['esv::status::TurnStartEventOneFrameComponent'] = true,
-    ['ls::anubis::TaskFinishedOneFrameComponent'] = true,
-    ['ls::anubis::TaskPausedOneFrameComponent'] = true,
-    ['ls::anubis::UnselectedStateComponent'] = true,
-    ['ls::anubis::ActiveComponent'] = true,
-    ['esv::GameTimerComponent'] = true,
-
-    -- Navigation
-    ['navcloud::RegionLoadingComponent'] = true,
-    ['navcloud::RegionLoadedOneFrameComponent'] = true,
-    ['navcloud::RegionsUnloadedOneFrameComponent'] = true,
-    ['navcloud::AgentChangedOneFrameComponent'] = true,
-    ['navcloud::ObstacleChangedOneFrameComponent'] = true,
-    ['navcloud::ObstacleMetaDataComponent'] = true,
-    ['navcloud::ObstacleComponent'] = true,
-    ['navcloud::InRangeComponent'] = true,
-
-    -- AI movement
-    ['eoc::steering::SyncComponent'] = true,
-
-    -- Timelines
-    ['eoc::TimelineReplicationComponent'] = true,
-    ['eoc::SyncedTimelineControlComponent'] = true,
-    ['eoc::SyncedTimelineActorControlComponent'] = true,
-    ['esv::ServerTimelineCreationConfirmationComponent'] = true,
-    ['esv::ServerTimelineDataComponent'] = true,
-    ['esv::ServerTimelineActorDataComponent'] = true,
-    ['eoc::TimelineActorDataComponent'] = true,
-    ['eoc::timeline::ActorVisualDataComponent'] = true,
-    ['ecl::TimelineSteppingFadeComponent'] = true,
-    ['ecl::TimelineAutomatedLookatComponent'] = true,
-    ['ecl::TimelineActorLeftEventOneFrameComponent'] = true,
-    ['ecl::TimelineActorJoinedEventOneFrameComponent'] = true,
-    ['eoc::timeline::steering::TimelineSteeringComponent'] = true,
-    ['esv::dialog::ADRateLimitingDataComponent'] = true,
-    
-    -- Crowd behavior
-    ['esv::crowds::AnimationComponent'] = true,
-    ['esv::crowds::DetourIdlingComponent'] = true,
-    ['esv::crowds::PatrolComponent'] = true,
-    ['eoc::crowds::CustomAnimationComponent'] = true,
-    ['eoc::crowds::ProxyComponent'] = true,
-    ['eoc::crowds::DeactivateCharacterComponent'] = true,
-    ['eoc::crowds::FadeComponent'] = true,
-
-    -- A lot of things sync this one for no reason
-    ['eoc::CanSpeakComponent'] = true,
-
-    -- Animations trigger tag updates
-    ['esv::tags::TagsChangedEventOneFrameComponent'] = true,
-    ['ls::animation::DynamicAnimationTagsComponent'] = true,
-    ['eoc::TagComponent'] = true,
-    ['eoc::trigger::TypeComponent'] = true,
-
-    -- Misc event spam
-    ['esv::spell::SpellPreparedEventOneFrameComponent'] = true,
-    ['esv::interrupt::ValidateOwnersRequestOneFrameComponent'] = true,
-    ['esv::death::DeadByDefaultRequestOneFrameComponent'] = true,
-    ['eoc::DarknessComponent'] = true,
-    ['esv::boost::DelayedDestroyRequestOneFrameComponent'] = true,
-    ['eoc::stats::EntityHealthChangedEventOneFrameComponent'] = true,
-
-    -- Updated based on distance to player
-    ['eoc::GameplayLightComponent'] = true,
-    ['esv::light::GameplayLightChangesComponent'] = true,
-    ['eoc::item::ISClosedAnimationFinishedOneFrameComponent'] = true,
-}
-private.StatusComponents = {
-    ['esv::status::AttemptEventOneFrameComponent'] = true,
-    ['esv::status::AttemptFailedEventOneFrameComponent'] = true,
-    ['esv::status::ApplyEventOneFrameComponent'] = true,
-    ['esv::status::ActivationEventOneFrameComponent'] = true,
-    ['esv::status::DeactivationEventOneFrameComponent'] = true,
-    ['esv::status::RemoveEventOneFrameComponent'] = true
-}
-private.SpamEntities = {
-    ["783884b2-fbee-4376-9c18-6fd99d225ce6"] = true, -- Annoying mephit spawn helper
-}
-
--- TestLogger = ImguiECSLogger:New()

@@ -14,8 +14,17 @@ ComponentIgnoreGroup = _Class:Create("ComponentIgnoreGroup", nil, {
     Name = "BaseBlank",
     Category = ECSComponentGroupCategory.Spam,
     Components = {},
-    Meta = {}
+    Meta = {},
 })
+local allDefaults = {}
+function ComponentIgnoreGroup:Init()
+    for component, _ in pairs(self.Components) do
+        allDefaults[component] = true
+    end
+end
+function ComponentIgnoreGroup.GetAllDefaults()
+    return table.shallowCopy(allDefaults)
+end
 
 ---Checks if all components in the group are present (true) as keys in the given mapping table
 ---@param tbl table<string,boolean>

@@ -5,6 +5,7 @@
 --- @field FilterHasChanged boolean
 --- @field _FilterTable ImguiLogFilter
 --- @field EstimatedHeight number
+--- @field Verbose boolean
 ---@field Ready boolean
 ImguiLogger = _Class:Create("ImguiLogger", nil, {
     Ready = false,
@@ -14,6 +15,7 @@ ImguiLogger = _Class:Create("ImguiLogger", nil, {
         Categories = {},
         Entries = {},
     },
+    Verbose = false,
     EstimatedHeight = 600,
 })
 function ImguiLogger:RebuildLog()
@@ -25,7 +27,7 @@ function ImguiLogger:RebuildLog()
     -- local lastEntry
     for _, entry in ipairs(self.LogEntries) do
         if self:IsEntryDrawable(entry, filterTable) then
-            entry:Draw(self.LogTable)
+            entry:Draw(self.LogTable, self.Verbose)
         end
         -- lastEntry = entry
     end
@@ -71,7 +73,7 @@ local scrollTick = 0
 ---@param entry ImguiLogEntry
 function ImguiLogger:AddToLogTable(entry)
     if self:IsEntryDrawable(entry) then
-        entry:Draw(self.LogTable)
+        entry:Draw(self.LogTable, self.Verbose)
     end
     if (self.LogTable.StatusFlags & "Visible") ~= 0 then
         if (self.LogTable.StatusFlags & "HoveredRect") == 0 and

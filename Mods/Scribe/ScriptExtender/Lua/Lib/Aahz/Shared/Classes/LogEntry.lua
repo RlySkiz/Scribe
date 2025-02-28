@@ -164,15 +164,10 @@ function EntityLogEntry:Draw(logTable, verbose)
     selectable.SpanAllColumns = true
     selectable.DontClosePopups = true
     local entityPopup = c2:AddPopup("")
-    entityPopup:AddSeparatorText(entryName)
-    local showText = entityPopup:AddText(self.ShowName or "")
-    showText:SetColor("Text", self.ShowColor or Imgui.Colors.White)
-    local inspectButton = entityPopup:AddButton("Inspect")
-    inspectButton.OnClick = function(_)
-        Scribe:GetOrCreateInspector(self.Entity, LocalPropertyInterface)
-    end
+    self:SetupPopup(entityPopup)
     selectable.OnClick = function(_)
         selectable.Selected = false
+        entityPopup.UserData.PrepareColor()
         entityPopup:Open()
     end
 
@@ -213,4 +208,45 @@ function EntityLogEntry:Draw(logTable, verbose)
         tt:AddSeparatorText(entryName)
         addBulletedSubEntries(tt)
     end)
+end
+
+--- Creates the entry's popup
+---@param popup ExtuiPopup
+function EntityLogEntry:SetupPopup(popup)
+    local entityName = tostring(self:GetEntry())
+    local header = popup:AddSeparatorText(self.ShowName or "")
+    local inspectButton = popup:AddButton("Inspect")
+    local showText = popup:AddText(entityName)
+    showText.SameLine = true
+
+    inspectButton.OnClick = function(_)
+        Scribe:GetOrCreateInspector(self.Entity, LocalPropertyInterface)
+    end
+    local componentTable = popup:AddTable(entityName.."LogPopup", 1)
+    componentTable.Borders = true
+    local row = componentTable:AddRow()
+    for _, component in ipairs(self.Components) do
+        local c = row:AddCell()
+        local wb = c:AddButton("Watch")
+        local ib = c:AddButton("Ignore")
+        ib.SameLine = true
+        local ct = c:AddText(tostring(component))
+        ct.SameLine = true
+        wb.OnClick = function()
+            if Scribe.ScribeLogger then
+                Scribe.ScribeLogger.LoggerECS:WatchComponent(component)
+            end
+        end
+        ib.OnClick = function()
+            if Scribe.ScribeLogger then
+                Scribe.ScribeLogger.LoggerECS:IgnoreComponent(component)
+            end
+        end
+    end
+    popup.UserData = {
+        PrepareColor = function()
+            popup:SetColor("Text", ImguiThemeManager.CurrentTheme:GetThemedColor('MainText'))
+            header:SetColor("Text", self.ShowColor or Imgui.Colors.White)
+        end
+    }
 end
