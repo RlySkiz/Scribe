@@ -76,7 +76,9 @@ function Imgui.CreateCommonWindow(name, args)
     args.MaxSizePercentage = args.MaxSizePercentage ~= nil and args.MaxSizePercentage or { .5, .85}
 
     local win = Ext.IMGUI.NewWindow(name)
-    win.IDContext = args.IDContext or ""
+    if args.IDContext then
+        win.IDContext = args.IDContext
+    end
     win:SetSize(args.Size, "FirstUseEver")
     win.Open = args.Open
     win.Closeable = args.Closeable

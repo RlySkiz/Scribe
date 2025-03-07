@@ -53,6 +53,17 @@ function ObjectPath:IsRecursive()
     return isRecursive
 end
 
+function ObjectPath:HasProperties()
+    local resolved = self:Resolve()
+    if resolved then
+        -- local count = table.count(resolved)
+        -- SDebug("ObjectPath %s: %s properties", self.Path[#self.Path], count)
+        return table.count(resolved) > 0
+    else
+        return false
+    end
+end
+
 function ObjectPath:__tostring()
     local pathStr = ""
     for _, key in ipairs(self.Path) do

@@ -120,12 +120,16 @@ end
 --- Generates an IMGUI entity card for the given entity
 ---@param container ExtuiTreeParent
 ---@param entity EntityHandle
-function Helpers.GenerateEntityCard(container, entity)
+function Helpers.GenerateEntityCard(container, entity, serverEntity)
     container:AddSeparatorText("Entity Info:")
     local dumpButton = container:AddButton("Dump")
     container:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown")).SameLine = true
     dumpButton.OnClick = function()
-        Helpers.Dump(entity)
+        if serverEntity then
+            Helpers.RequestServerDump(ObjectPath:New(entity))
+        else
+            Helpers.Dump(entity)
+        end
     end
 
     container:AddText("Uuid:")
@@ -280,4 +284,49 @@ function Helpers.Dump(obj, requestedName)
     end
     RPrint(string.format("Dumping: %s_0.json", path))
     return Ext.IO.SaveFile(path.."_0.json", data or "No dumpable data available.")
+end
+
+local RequestServerDump = Ext.Net.CreateChannel(ModuleUUID, "Scribe.RequestServerDump")
+if Ext.IsClient() then
+    ---@param path ObjectPath
+    ---@param requestedName string?
+    function Helpers.RequestServerDump(path, requestedName)
+        if path then
+            local root = path.Root
+            if type(root) ~= "string" then
+                local uuid = Ext.Entity.HandleToUuid(root)
+                if not uuid then
+                    return SWarn("Cannot request a server dump of entities that don't have UUID's (%s)", tostring(root))
+                else
+                    root = uuid
+                end
+            end
+            RequestServerDump:SendToServer({
+                Root = root,
+                Path = path.Path,
+                RequestedName = requestedName,
+            })
+        else
+            SWarn("Requested server dump without providing object path.")
+        end
+    end
+else
+    -- Server only
+    RequestServerDump:SetHandler(function(args)
+        local entity
+        if type(args.Root) == "string" then
+            entity = Ext.Entity.Get(args.Root)
+            if entity then
+                local path = ObjectPath:New(entity, args.Path)
+                local obj = path:Resolve()
+                if obj ~= nil then
+                    Helpers.Dump(obj, args.RequestedName)
+                end
+            else
+                SWarn("Couldn't resolve entity when requesting server dump: %s", tostring(args.Root))
+            end
+        else
+            SWarn("Invalid root type: %s (%s)", tostring(args.Root), type(args.Root))
+        end
+    end)
 end

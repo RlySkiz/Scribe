@@ -12,7 +12,7 @@ local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 --- @field TreeView ExtuiTree
 --- @field PropertiesView PropertyListView
 --- @field Target EntityHandle?
---- @field PropertyInterface LocalPropertyInterface
+--- @field PropertyInterface LocalPropertyInterface|NetworkPropertyInterface
 --- @field WindowName string
 --- @field Instances table<EntityHandle,Inspector>
 Inspector = {
@@ -89,15 +89,22 @@ end
 --- @param node ExtuiTree
 --- @param name string
 --- @param canExpand boolean
+--- @return ExtuiTree
 function Inspector:AddExpandedChild(node, name, canExpand)
     local child = node:AddTree(tostring(name))
     child.UserData = { Path = node.UserData.Path:CreateChild(name) }
-
     child.OnExpand = function (e) self:ExpandNode(e) end
     child.OnClick = function (e) self:ViewNodeProperties(e) end
 
     child.Leaf = not canExpand
     child.SpanAvailWidth = true
+    local hasProps = child.UserData.Path:HasProperties()
+    if not hasProps and not canExpand then
+        local empty = node:AddText("(empty)")
+        empty.SameLine = true
+        empty:SetColor("Text", ImguiThemeManager:GetThemedColor('Grey'))
+    end
+    return child
 end
 
 function Inspector:Search(search)
@@ -201,17 +208,37 @@ end
 function Inspector:ExpandNode(node)
     if node.UserData.Expanded then return end
 
+    local tempEmpty = node:AddText("(empty)")
+    tempEmpty.SameLine = true
+    tempEmpty:SetColor("Text", ImguiThemeManager:GetThemedColor('Grey'))
+    node.UserData.EmptyMarker = tempEmpty
+
     local searchKeyTbl = {}
     local propKeys = {}
+    local children = {}
     self.PropertyInterface:FetchChildren(node.UserData.Path, function (nodes, properties, typeInfo)
         for _,info in ipairs(nodes) do
             if not tonumber(info.Key) then
                 table.insert(searchKeyTbl, tostring(info.Key))
             end
-            self:AddExpandedChild(node, info.Key, info.CanExpand)
+            table.insert(children, self:AddExpandedChild(node, info.Key, info.CanExpand))
         end
         for _,info in ipairs(properties) do
             table.insert(propKeys, tostring(info.Key))
+        end
+        if table.count(propKeys) == 0 then
+            -- We don't have any properties ourselves, expand children that have properties
+            for _,child in ipairs(children) do
+                if child.UserData.Path:HasProperties() then
+                    self:ExpandNode(child)
+                    child:SetOpen(true)
+                end
+            end
+        else
+            if node.UserData.EmptyMarker then
+                node.UserData.EmptyMarker:Destroy()
+                node.UserData.EmptyMarker = nil
+            end
         end
     end)
     node.UserData.SearchKey = ("[%s]:%s>%s"):format(node.Label, table.concat(searchKeyTbl, ","), table.concat(propKeys, ",")):lower()
@@ -238,7 +265,9 @@ function Inspector:UpdateInspectTarget(target)
 
     local targetEntity = target --[[@as EntityHandle]]
     if type(target) == "string" then
-        targetEntity = Ext.Entity.Get(target)
+        if Helpers.Format.IsValidUUID(target) then
+            targetEntity = Ext.Entity.Get(target)
+        end
     end
 
     if self.Target ~= nil then
@@ -250,7 +279,7 @@ function Inspector:UpdateInspectTarget(target)
         self.Target = targetEntity
         self.TargetId = target
         self.Instances[targetEntity] = self
-        Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity)
+        Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end

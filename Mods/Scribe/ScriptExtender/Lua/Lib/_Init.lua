@@ -35,6 +35,10 @@ FirstTime:Subscribe(function(v)
     end
 end)
 
-Inspector = Ext.Require("Lib/Norbyte/Inspector/Inspector.lua")
-LocalPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/LocalPropertyInterface.lua")
-NetworkPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/NetworkPropertyInterface.lua")
+if Ext.IsClient() then
+    Inspector = Ext.Require("Lib/Norbyte/Inspector/Inspector.lua")
+    LocalPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/LocalPropertyInterface.lua")
+    NetworkPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/NetworkPropertyInterface.lua")
+else
+    ServerPropertyHandler = require("Lib.Norbyte.Inspector.ServerPropertyHandler")
+end

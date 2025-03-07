@@ -46,13 +46,10 @@ function LocalPropertyInterface:FetchChildrenInternal(obj, handler, typeInfo)
             table.insert(nodes, {Key=key, CanExpand=CanExpandValue(val)})
         elseif IsUserdataEdgecase(val) then
             table.insert(props, {Key=key, Value=math.maxinteger})
-        -- elseif val == parentPath.Root then -- display recursion at editor-level point of display
-        --     table.insert(props, {Key=key, Value="**RECURSION**"})
         else
             table.insert(props, {Key=key, Value=val})
         end
     end
-
     handler(nodes, props, typeInfo)
 end
 
@@ -67,6 +64,9 @@ function LocalPropertyInterface:FetchChildren(path, handler)
         local attrs
         if typeName == "Entity" then
             attrs = obj:GetAllComponents(false)
+        elseif type(obj) == "string" and obj ~= "" then
+            local e = Ext.Entity.UuidToHandle(obj)
+            if e then attrs = e:GetAllComponents(false) else attrs = obj end
         else
             attrs = obj
         end
