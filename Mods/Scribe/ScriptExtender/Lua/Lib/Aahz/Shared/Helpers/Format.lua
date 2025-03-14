@@ -6,6 +6,7 @@ local GetEntityName = H.GetEntityName
 
 ---@return Guid
 function Helpers.Format.CreateUUID()
+---@diagnostic disable-next-line: redundant-return-value
     return string.gsub("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx", "[xy]", function (c)
         return string.format("%x", c == "x" and Ext.Math.Random(0, 0xf) or Ext.Math.Random(8, 0xb))
     end)
@@ -33,7 +34,7 @@ end
 
 --- Converts a quaternion [x,y,z,w] to Euler angles [x,y,z] (roll, pitch, yaw).
 ---@param quat vec4
----@return table
+---@return vec3
 function Helpers.Math.QuatToEuler(quat)
     local x, y, z, w = quat[1], quat[2], quat[3], quat[4]
 
@@ -234,6 +235,7 @@ function Helpers.Format.SanitizeFileName(str)
     str = string.gsub(str, "[%c<>:\"/\\|%?%*]", "") -- Removes:     < > : " / \ | ? *
 
     -- Trim whitespace from the beginning and end of the string
+---@diagnostic disable-next-line: param-type-mismatch
     str = str:trim()
 
     return str

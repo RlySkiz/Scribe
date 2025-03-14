@@ -1,6 +1,49 @@
 
 Helpers = Helpers or {}
 Helpers.Color = Helpers.Color or {}
+Helpers.ConsoleColorCodes = {
+    -- Attributes
+    Reset           = "\x1b[0m",
+    Bright          = "\x1b[1m",
+    Dim             = "\x1b[2m",
+    Italic          = "\x1b[3m",  -- non-standard feature
+    Underscore      = "\x1b[4m",
+    BlinkOn         = "\x1b[5m",
+    Reverse         = "\x1b[7m",
+    Hidden          = "\x1b[8m",
+    BrightOff       = "\x1b[21m",
+    UnderscoreOff   = "\x1b[24m",
+    BlinkOff        = "\x1b[25m",
+
+    Black   = "\x1b[30m",
+    Red     = "\x1b[31m",
+    Green   = "\x1b[32m",
+    Yellow  = "\x1b[33m",
+    Blue    = "\x1b[34m",
+    Magenta = "\x1b[35m",
+    Cyan    = "\x1b[36m",
+    White   = "\x1b[37m",
+    Default = "\x1b[39m",
+
+    LightGray   = "\x1b[90m",
+    LightRed    = "\x1b[91m",
+    LightGreen  = "\x1b[92m",
+    LightYellow = "\x1b[93m",
+    LightBlue   = "\x1b[94m",
+    LightMagenta= "\x1b[95m",
+    LightCyan   = "\x1b[96m",
+    LightWhite  = "\x1b[97m",
+
+    BGBlack     = "\x1b[40m",
+    BGRed       = "\x1b[41m",
+    BGGreen     = "\x1b[42m",
+    BGYellow    = "\x1b[43m",
+    BGBlue      = "\x1b[44m",
+    BGMagenta   = "\x1b[45m",
+    BGCyan      = "\x1b[46m",
+    BGWhite     = "\x1b[47m",
+    BGDefault   = "\x1b[49m"
+}
 
 ---@param hex string
 ---@param alpha number? 0.0-1.0
