@@ -84,6 +84,8 @@ function Helpers.GetEntityName(e)
         return "Terrain"
     elseif e.GameObjectVisual ~= nil then
         return Ext.Template.GetTemplate(e.GameObjectVisual.RootTemplateId).Name
+    elseif e.TLPreviewDummy ~= nil then
+        return ("TLPreviewDummy:%s"):format(e.TLPreviewDummy.Name == "DUM_" and e.Uuid and e.TLPreviewDummy.Name..e.Uuid.EntityUuid or e.TLPreviewDummy.Name)
     elseif e.Visual ~= nil and e.Visual.Visual ~= nil and e.Visual.Visual.VisualResource ~= nil then
         local name = ""
         if e:HasRawComponent("ecl::Scenery") then
