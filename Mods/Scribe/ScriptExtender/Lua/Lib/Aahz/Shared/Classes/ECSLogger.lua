@@ -1,5 +1,15 @@
 local CC = Helpers.ConsoleColorCodes
 
+---@enum ECSLoggerNetOps
+ECSLoggerNetOps = {
+    ToggleStartStop = "ToggleStartStop",
+    Start = "Start",
+    Stop = "Stop",
+    Clear = "Clear",
+    UpdateSetting = "UpdateSetting",
+    Sync = "Sync"
+}
+
 ---@class ECSComponentChange
 ---@field Name string
 ---@field Type ExtComponentType?
@@ -10,8 +20,11 @@ local CC = Helpers.ConsoleColorCodes
 ---@field ReplicatedComponent boolean
 
 ---@class ECSChange
----@field Entity EntityHandle
+---@field Entity EntityHandle?
 ---@field IsServer boolean # false == client
+---@field EntityDisplayName string
+---@field EntityName string
+---@field Uuid Guid? # if available
 ---@field HandleInteger integer # Ext.Utils.IntegerToHandle(HandleInteger) == Entity (when in the originating context)
 ---@field TimeStamp number
 ---@field EntityCreated boolean
@@ -34,10 +47,7 @@ local CC = Helpers.ConsoleColorCodes
 ---@field ComponentReplications boolean|nil Include server-side replication events
 ---@field ComponentCreations boolean|nil Include component creation events
 ---@field ComponentDeletions boolean|nil Include component deletions
----@field ExcludeComponents table<string,boolean> Exclude these components
 ---@field ExcludeSpamEntities boolean
----@field ExcludeCommonComponents boolean
----@field Boosts boolean|nil Include boost entities
 ---@field ExcludeCrowds boolean|nil Exclude crowd entities
 ---@field ExcludeStatuses boolean|nil Exclude status entities
 ---@field ExcludeBoosts boolean|nil Exclude boost entities
@@ -50,7 +60,6 @@ local CC = Helpers.ConsoleColorCodes
 ---@field WatchedComponents table<string,boolean> 
 ---@field KnownComponents table<string, boolean> # mapping of known (mapped) components, populated at runtime elsewhere in LocalSettings
 ---@field UnknownComponents table<string, boolean> # mapping of SE-unmapped components
----@field AutoInspect boolean
 ---@field AutoDump boolean
 ---@field IgnoredComponents table<string, boolean>
 ---@field OnStartStop ReplaySubject<boolean> # sends true if running, false if stopped
@@ -58,7 +67,7 @@ local CC = Helpers.ConsoleColorCodes
 ---@field OnNewChange Subject<ECSChange> # pushes new changes that pass filters
 ---@field OnFrameCount Subject<integer> # observable frame number
 ECSLogger = _Class:Create("ECSLogger", nil, {
-    FrameNo = 0,
+    FrameNo = 1,
     ChangeCounts = {},
     TrackChangeCounts = true,
     PrintChangesToConsole = false,
@@ -72,7 +81,6 @@ ECSLogger = _Class:Create("ECSLogger", nil, {
 
     -- Special exclusions
     ExcludeSpamEntities = true,
-    ExcludeComponents = {},
     SpamEntities = {
         ["783884b2-fbee-4376-9c18-6fd99d225ce6"] = true, -- Annoying mephit spawn helper
     },
@@ -123,23 +131,25 @@ function ECSLogger:Init()
 end
 function ECSLogger:StartStopTracing()
     if self.TickHandler then
+        SDebug("ECSLogger: Stopping.")
         -- Currently tracing, turn off
         Ext.Entity.EnableTracing(false)
         Ext.Entity.ClearTrace()
         Ext.Events.Tick:Unsubscribe(self.TickHandler)
         self.TickHandler = nil
         self.OnStartStop(false)
-        -- self.ThrobberWin.Visible = false
     else
+        SDebug("ECSLogger: Starting.")
         -- Not currently tracing, turn on
         Ext.Entity.EnableTracing(true)
         self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
         self.OnStartStop(true)
-        -- self.ThrobberWin.Visible = true
     end
 end
 function ECSLogger:StartTracing()
     if not self.TickHandler then
+        SDebug("ECSLogger: Starting.")
+        -- not running, so start tracing
         Ext.Entity.EnableTracing(true)
         self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
         self.OnStartStop(true)
@@ -147,13 +157,16 @@ function ECSLogger:StartTracing()
 end
 
 function ECSLogger:StopTracing()
-    if not self.Running then
+    if self.Running then
+        SDebug("ECSLogger: Stopping.")
+        -- Running, so stop tracing
         Ext.Entity.EnableTracing(false)
         Ext.Entity.ClearTrace()
         if self.TickHandler ~= nil then
             Ext.Events.Tick:Unsubscribe(self.TickHandler)
         end
         self.TickHandler = nil
+        self.OnStartStop(false)
     end
 end
 ---TODO
@@ -168,7 +181,8 @@ end
 function ECSLogger:CheckChanges(entity, changes)
     if self.PrintChangesToConsole then
         -- Print main entity name and create/destroy status
-        local msg = CC.LightGray .."[#" .. self.FrameNo .. "] " .. self:GetEntityNameDecorated(entity) .. ": "
+        local msg = Ext.IsServer() and CC.Cyan .. "(S)" or CC.Magenta .. "(C)"
+        msg = msg .. CC.LightGray .."[#" .. self.FrameNo .. "] " .. self:GetEntityNameDecorated(entity) .. ": "
         if changes.EntityCreated then msg = msg .. CC.Yellow .. "Created" end
         if changes.EntityDestroyed then msg = msg .. CC.Red .. "Destroyed" end
         print(msg)
@@ -224,9 +238,12 @@ end
 ---@param frame integer # timestamp
 ---@return ECSChange
 local function parseComponentChanges(entity, entityLog, frame)
+    entity = entityLog.Entity or entity
     ---@type ECSChange
     local newChange = {
-        Entity = entityLog.Entity or entity,
+        Entity = entity,
+        EntityDisplayName = Helpers.GetEntityName(entity) or "Unknown",
+        EntityName = ECSLogger:GetEntityName(entity),
         IsServer = Ext.IsServer(),
         HandleInteger = Ext.Utils.HandleToInteger(entityLog.Entity),
         TimeStamp = frame,
@@ -237,6 +254,8 @@ local function parseComponentChanges(entity, entityLog, frame)
         EntityImmediate = entityLog.Immediate,
         ComponentChanges = {},
     }
+    -- Associate uuid if entity exists and has one
+    newChange.Uuid = newChange.Entity and newChange.Entity.Uuid and newChange.Entity.Uuid.EntityUuid
     for _,component in pairs(entityLog.Components) do
         ---@type ECSComponentChange
         local compEntry = {

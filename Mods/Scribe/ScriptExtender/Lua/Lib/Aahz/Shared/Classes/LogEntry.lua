@@ -110,7 +110,10 @@ function ImguiLogEntry:Draw(logTable, verbose)
     -- end
 end
 ---@class EntityLogEntry : LogEntry
----@field Entity EntityHandle
+---@field Entity EntityHandle?
+---@field EntityUuid Guid?
+---@field OriginatingContext LuaContext
+---@field HandleInteger integer
 ---@field ShowName string
 ---@field ShowColor vec4
 ---@field Components string[]
@@ -183,7 +186,7 @@ function EntityLogEntry:Draw(logTable, verbose)
     self.Cells = {
         c1, c2, c3
     }
-    local function checkDeath() self:CheckIfEntityIsDead() end
+    local function checkDeath() if self.Entity then self:CheckIfEntityIsDead() end end
     c1.OnHoverEnter = checkDeath
     c2.OnHoverEnter = checkDeath
     c3.OnHoverEnter = checkDeath

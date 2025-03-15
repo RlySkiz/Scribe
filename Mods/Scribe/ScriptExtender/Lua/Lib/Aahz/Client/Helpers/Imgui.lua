@@ -19,7 +19,7 @@ end
 ---@param parent ExtuiTreeParent
 ---@param estimatedWidth number
 ---@param contentFunc fun(contentCell:ExtuiTableCell):...:any
----@param sameLine boolean? # true = layoutable.SameLine = true
+---@param sameLine boolean? # true = layoutTable.SameLine = true
 ---@return ... # returns result of contentFunc
 function Imgui.CreateRightAlign(parent, estimatedWidth, contentFunc, sameLine)
     -- Right align button :deadge:
@@ -38,10 +38,12 @@ end
 ---@param parent ExtuiTreeParent
 ---@param estimatedWidth number
 ---@param contentFunc fun(contentCell:ExtuiTableCell):...:any
+---@param sameLine boolean? # true = layoutTable.SameLine = true
 ---@return ... # returns result of contentFunc
-function Imgui.CreateMiddleAlign(parent, estimatedWidth, contentFunc)
+function Imgui.CreateMiddleAlign(parent, estimatedWidth, contentFunc, sameLine)
     -- Middle align button :deadge:
     local ltbl = parent:AddTable("", 3)
+    if sameLine then ltbl.SameLine = true end
     ltbl:AddColumn("", "WidthStretch")
     ltbl:AddColumn("", "WidthFixed", estimatedWidth)
     ltbl:AddColumn("", "WidthStretch")

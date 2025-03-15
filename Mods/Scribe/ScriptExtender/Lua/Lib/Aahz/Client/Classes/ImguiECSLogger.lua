@@ -1,3 +1,6 @@
+---@module 'Shared.Classes.NetworkEvents'
+local NetworkEvents = Ext.Require("Shared/Classes/NetworkEvents.lua")
+
 --- @class ImguiECSLogger: ImguiLogger
 --- @field Logger ECSLogger
 --- @field Ready boolean
@@ -15,25 +18,26 @@
 --- @field WatchDualPane ImguiDualPane
 --- @field ApplyWatchFilters boolean
 --- @field AutoInspect boolean
---- @field AutoDump boolean
 --- @field IgnoreComponentWindow ExtuiWindow
 --- @field IgnoreDualPane ImguiDualPane
 --- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
 --- @field RunningHue integer
---- @field EntityColorMap table<integer, vec4>
+--- @field EntityColorMap table<string, vec4>
+--- @field UsingServerLogger boolean
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
     LogEntries = {},
 
     ApplyWatchFilters = false,
     RunningHue = 0,
-    EntityColorMap = {}
+    EntityColorMap = {},
+    UsingServerLogger = false,
 })
 
 function ImguiECSLogger:Init()
     self.Ready = false
     self.Logger = ECSLogger
-    self.AutoInspect = ECSLogger.AutoInspect
+    self.AutoInspect = self.AutoInspect or false
     self.AutoDump = ECSLogger.AutoDump
 end
 
@@ -60,12 +64,77 @@ function ImguiECSLogger:CreateTab(tab, mainMenu)
         end
     end
 end
+---@param useServer boolean?
+function ImguiECSLogger:ToggleLoggerContext(useServer)
+    self.UsingServerLogger = useServer ~= nil
+    -- Stop loggers if running and clear
+    if useServer then
+        -- Use Server
+        self.Logger:StopTracing() -- stop local if it's running
+
+        -- Make sure server is on the same page
+        local data = {
+            IgnoredComponents = self.Logger.IgnoredComponents,
+            WatchedComponents = self.Logger.WatchedComponents,
+
+            TrackChangeCounts = self.Logger.TrackChangeCounts,
+            PrintChangesToConsole = self.Logger.PrintChangesToConsole,
+            EntityCreations = self.Logger.EntityCreations,
+            EntityDeletions = self.Logger.EntityDeletions,
+            OneFrameComponents = self.Logger.OneFrameComponents,
+            ReplicatedComponents = self.Logger.ReplicatedComponents,
+            ComponentReplications = self.Logger.ComponentReplications,
+            ComponentCreations = self.Logger.ComponentCreations,
+            ComponentDeletions = self.Logger.ComponentDeletions,
+            ExcludeSpamEntities = self.Logger.ExcludeSpamEntities,
+            SpamEntities = self.Logger.SpamEntities,
+            ExcludeCrowds = self.Logger.ExcludeCrowds,
+            ExcludeStatuses = self.Logger.ExcludeStatuses,
+            ExcludeBoosts = self.Logger.ExcludeBoosts,
+            ExcludeInterrupts = self.Logger.ExcludeInterrupts,
+            ExcludePassives = self.Logger.ExcludePassives,
+            ExcludeInventories = self.Logger.ExcludeInventories,
+            AutoDump = self.Logger.AutoDump,
+        }
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.Sync,
+            Data = data
+        })
+        -- Clear server
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.Clear,
+        })
+    else
+        -- Use Client
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.Stop, -- stop server logger if it's running
+        })
+    end
+
+    -- Clear Log when context switches
+    self.ClearButton:OnClick()
+end
+-- Handle ECSLogger Settings according to server/client context
+---@param key string
+---@param value any
+function ImguiECSLogger:HandleContextSetting(key, value)
+    -- Only update server settings if using it
+    if self.UsingServerLogger then
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.UpdateSetting,
+            Key = key,
+            Data = value,
+        })
+    end
+    -- Always update local logger settings to match
+    self.Logger[key] = value
+end
 
 function ImguiECSLogger:InitializeLayout()
     if self.Ready then return end -- only initialize once
     local startstop = self.Window:AddButton("Start/Stop")
     local clear = self.Window:AddButton("Clear")
-    local frameCounter = self.Window:AddText("Frame: 0")
+    local frameCounter = self.Window:AddText("Frame: 1")
     clear.SameLine = true
     frameCounter.SameLine = true
     frameCounter:SetColor("Text", Imgui.Colors.Tan)
@@ -75,13 +144,28 @@ function ImguiECSLogger:InitializeLayout()
     eventCounter.SameLine = true
     eventCounter:SetColor("Text", Imgui.Colors.Tan)
 
+    Imgui.CreateRightAlign(self.Window, 150, function(c)
+        local contextToggle = c:AddSliderInt("Client", 0, 0, 1)
+        contextToggle.AlwaysClamp = true
+        contextToggle.ItemWidth = 50
+        contextToggle.OnChange = function()
+            if contextToggle.Value[1] == 1 then
+                contextToggle.Label = "Server"
+                self:ToggleLoggerContext(true)
+            else
+                contextToggle.Label = "Client"
+                self:ToggleLoggerContext()
+            end
+        end
+    end, true)
+
     local printToConsoleChk = self.SettingsMenu:AddCheckbox("Print to Console", self.PrintChangesToConsole)
     printToConsoleChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
     printToConsoleChk.IDContext = "Scribe_ECSLoggerPrintToConsoleChk"
     printToConsoleChk:Tooltip():AddText("\t".."Log entity changes to console as well.")
 
     printToConsoleChk.OnChange = function(c)
-        self.PrintChangesToConsole = c.Checked
+        self:HandleContextSetting("PrintChangesToConsole", c.Checked)
     end
     local verboseChk = self.SettingsMenu:AddCheckbox("Verbose Log Entries", self.Verbose)
     verboseChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
@@ -120,7 +204,7 @@ function ImguiECSLogger:InitializeLayout()
         self.AutoInspect = c.Checked
     end
     autoDumpChk.OnChange = function(c)
-        self.AutoDump = c.Checked
+        self:HandleContextSetting("AutoDump", c.Checked)
     end
 
     self:CreateIgnoredComponentsWindow()
@@ -178,16 +262,35 @@ function ImguiECSLogger:InitializeLayout()
     self.EventCounter = eventCounter
     self.Ready = true
 
-    -- mockup
     startstop.OnClick = function(b)
-        if not self.Logger.Running then
-            -- not tracing, intent is to start logging again, so rebuild/clear log
-            self:RebuildLog()
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:RequestToServer({
+                Operation = ECSLoggerNetOps.ToggleStartStop,
+            }, function(reply)
+                if reply then
+                    -- Server logger is running
+                    self.ThrobberWin.Visible = true
+                else
+                    self.ThrobberWin.Visible = false
+                end
+            end)
+        else
+            if not self.Logger.Running then
+                -- not tracing, intent is to start logging again, so rebuild/clear log
+                self:RebuildLog()
+            end
+            self.Logger:StartStopTracing()
         end
-        self.Logger:StartStopTracing()
     end
     clear.OnClick = function(b)
-        self.Logger:Clear()
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:SendToServer({
+                Operation = ECSLoggerNetOps.Clear,
+            })
+        else
+            self.Logger:Clear()
+        end
+        self.FrameCounter.Label = "Frame: 1"
         self.EventCounter.Label = "Events: 0"
         self.LogEntries = {}
         self:RebuildLog()
@@ -202,7 +305,7 @@ function ImguiECSLogger:SetupToggles()
         chk.IDContext = "Scribe_ECSLogger"..key.."Chk"
         chk:Tooltip():AddText("\t"..tooltipText)
         chk.OnChange = function(c)
-            self[name] = c.Checked
+            self:HandleContextSetting(name, c.Checked)
         end
     end
 
@@ -261,6 +364,13 @@ function ImguiECSLogger:CreateScribeThrobber()
         end
     end)
     self.ThrobberWin = win
+    self.Logger.OnStartStop:Subscribe(function(running)
+        if running then
+            self.ThrobberWin.Visible = true
+        else
+            self.ThrobberWin.Visible = false
+        end
+    end)
 end
 
 function ImguiECSLogger:CreateComponentWatchWindow()
@@ -287,7 +397,18 @@ function ImguiECSLogger:CreateComponentWatchWindow()
     self.WatchComponentWindow = win
     self.WatchDualPane = dualPane
     self.WatchDualPane.ChangesSubject:Subscribe(function(c)
+        -- Always update local ECSLogger immediately
         self.Logger.WatchedComponents = self.WatchDualPane:GetSelectedMap()
+    end)
+    self.WatchDualPane.OnSettle:Subscribe(function(c)
+        -- If using server context, update server when watched components settle, so bulk updates don't freeze
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:SendToServer({
+                Operation = ECSLoggerNetOps.UpdateSetting,
+                Key = "WatchedComponents",
+                Data = self.WatchDualPane:GetSelectedMap()
+            })
+        end
     end)
     self.Logger.WatchedComponents = self.WatchDualPane:GetSelectedMap() -- init
 end
@@ -342,6 +463,7 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
     self.IgnoreComponentWindow = win
     self.IgnoreDualPane = dualPane
     self.IgnoreDualPane.ChangesSubject:Subscribe(function(c)
+        -- Always update local logger's ignored components immediately
         self.Logger.IgnoredComponents = self.IgnoreDualPane:GetSelectedMap()
     end)
 
@@ -400,6 +522,15 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
                 btn:SetColor("Button", ImguiThemeManager.CurrentTheme.Colors.Button)
             end
         end
+
+        -- If using server logger, update Ignored components on settle, so bulk updates don't freeze
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:SendToServer({
+                Operation = ECSLoggerNetOps.UpdateSetting,
+                Key = "IgnoredComponents",
+                Data = dualPane:GetSelectedMap()
+            })
+        end
     end
     dualPane.OnSettle:Subscribe(onIgnoreSettle)
 
@@ -427,29 +558,31 @@ function ImguiECSLogger:WrapLoggerTick()
     local function errorWarn() SWarn("ECSLogger errored or completed, what is happening.") end
 
     ---@param change ECSChange
-    self.Logger.OnNewChange:Subscribe(function(change)
-        local entity = change.Entity
-        local entityShowName = Helpers.GetEntityName(entity)
-        local entityName = self:GetEntityName(entity)
+    local function processChange(change)
+        local entityDisplayName = change.EntityDisplayName
+        local entityName = change.EntityName
         local useShowName = entityName:sub(1, 8) == "Entity (" or entityName == ""
         local inspectThisEntity = false
-
+    
         local newEntry = EntityLogEntry:New{
-            Entity = entity,
+            Entity = change.Entity,
+            OriginatingContext = change.IsServer and "Server" or "Client",
+            EntityUuid = change.Entity and change.Entity.Uuid and change.Entity.Uuid.EntityUuid,
+            HandleInteger = change.HandleInteger,
             TimeStamp = self.Logger.FrameNo,
-            ShowName = useShowName and entityShowName or entityName,
-            ShowColor = useShowName and self:GetEntityColor(entity) or Imgui.Colors.White,
+            ShowName = useShowName and entityDisplayName or entityName,
+            ShowColor = useShowName and self:GetEntityColor(entityDisplayName) or Imgui.Colors.White,
             _Entry = entityName,
             _FilterableEntry = entityName,
             _Category = "Unknown"
         }
-        if newEntry._Entry == "" then newEntry._Entry = tostring(entity) newEntry._FilterableEntry = "UnnamedEntity" end
+        if newEntry._Entry == "" then newEntry._Entry = entityDisplayName newEntry._FilterableEntry = "UnnamedEntity" end
         if change.EntityCreated then newEntry._Category = "EntityCreated" end
         if change.EntityDestroyed then newEntry._Category = "EntityDestroyed" end -- never actually fires, because component is being destroyed instead of entity?
         if change.EntityDead then newEntry._Category = "EntityDead" end
         if change.EntityImmediate then newEntry._Category = "Immediate"end
         if change.EntityIgnore then newEntry._Category = "Ignore" end
-
+    
         local componentNames = {}
         for _,component in pairs(change.ComponentChanges) do
             local newSub = ""
@@ -466,22 +599,43 @@ function ImguiECSLogger:WrapLoggerTick()
                 newSub = "! "
             end
             table.insert(componentNames, component.Name)
-            newEntry:AddSubEntry(newSub..tostring(component.Name))
+            newEntry:AddSubEntry(("%s%s%s"):format(newSub, tostring(component.Name), self.Logger.UnknownComponents[component.Name] and "*" or ""))
             -- Send name to WatchDualPane, just in case it's unseen (ignored if already exists)
             self.WatchDualPane:AddOption(component.Name)
-
+    
             if self.AutoInspect and self.Logger.WatchedComponents[component.Name] then
                 inspectThisEntity = true
             end
         end
         if inspectThisEntity then
-            Inspector:GetOrCreate(entity, LocalPropertyInterface) -- TODO fix extra instances (init order problem?)
+            if change.IsServer then
+                if change.Entity then
+                    Inspector:GetOrCreate(change.Entity, NetworkPropertyInterface)
+                end
+            else
+                if change.Entity then
+                    Inspector:GetOrCreate(change.Entity, LocalPropertyInterface) -- TODO fix extra instances (init order problem?)
+                end
+            end
             -- Scribe:UpdateInspectTarget(entity)
         end
         newEntry.Components = componentNames
         self:AddLogEntry(newEntry)
         self.EventCounter.Label = "Events: " .. #self.LogEntries
+    end
+    -- Local ECSLogger
+    self.Logger.OnNewChange:Subscribe(function(change)
+        processChange(change)
     end, errorWarn, errorWarn)
+    -- Server ECSLogger
+    ---@param msg ECSChange
+    NetworkEvents.ECSLoggerEvent:SetHandler(function(msg)
+        if msg.Uuid then
+            -- Uuid available, grab entity
+            msg.Entity = Ext.Entity.Get(msg.Uuid)
+        end
+        processChange(msg)
+    end)
 end
 
 ---@param entity EntityHandle
@@ -514,12 +668,12 @@ function ImguiECSLogger:GetEntityName(entity)
 end
 
 --- Gets associated color for this entity, generating if necessary
----@param entity EntityHandle
+---@param entityDisplayName string
 ---@return vec4
-function ImguiECSLogger:GetEntityColor(entity)
-    if not entity then return Imgui.Colors.White end
-    local handle = Ext.Utils.HandleToInteger(entity)
-    if self.EntityColorMap[handle] then return self.EntityColorMap[handle] end
+function ImguiECSLogger:GetEntityColor(entityDisplayName)
+    if not entityDisplayName then return Imgui.Colors.White end
+
+    if self.EntityColorMap[entityDisplayName] then return self.EntityColorMap[entityDisplayName] end
 
     -- Use current hue to generate RGB
     local r,g,b = Helpers.Color.HSVToRGB(self.RunningHue,.65,1)
@@ -528,6 +682,6 @@ function ImguiECSLogger:GetEntityColor(entity)
     -- Normalize RGB (0~255 to 0~1)
     local color = Helpers.Color.NormalizedRGBA(r,g,b, 1)
     -- Assign and return
-    self.EntityColorMap[handle] = color
+    self.EntityColorMap[entityDisplayName] = color
     return color
 end
