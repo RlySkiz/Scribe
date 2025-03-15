@@ -13,6 +13,7 @@ local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 --- @field PropertiesView PropertyListView
 --- @field Target EntityHandle?
 --- @field PropertyInterface LocalPropertyInterface|NetworkPropertyInterface
+--- @field AutoExpandChildren boolean
 --- @field WindowName string
 --- @field Instances table<EntityHandle,Inspector>
 Inspector = {
@@ -25,6 +26,7 @@ function Inspector:New(intf, o)
 	o = o or {}
     o.PropertyInterface = intf
     o.WindowName = o.WindowName or "Object Inspector"
+    o.AutoExpandChildren = o.AutoExpandChildren or false
 	setmetatable(o, self)
     self.__index = self
     return o
@@ -226,7 +228,7 @@ function Inspector:ExpandNode(node)
         for _,info in ipairs(properties) do
             table.insert(propKeys, tostring(info.Key))
         end
-        if table.count(propKeys) == 0 then
+        if self.AutoExpandChildren and table.count(propKeys) == 0 then
             -- We don't have any properties ourselves, expand children that have properties
             for _,child in ipairs(children) do
                 if child.UserData.Path:HasProperties() then
