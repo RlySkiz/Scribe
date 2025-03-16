@@ -1,10 +1,14 @@
 
 local GetEntityName = Helpers.GetEntityName
 local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
+local EntityCard = require("Lib.Skiz.Client.Classes.EntityCard")
+local TagsAndFlags = require("Lib.Skiz.Client.Classes.TagsAndFlagsUI")
 
 -- FIXME Need to settle on global Scribe somewhere and annotate :concernedsip:
 --- @class Scribe
 --- @field Window ExtuiWindow
+--- @field EntityCard EntityCard
+--- @field TagsAndFlags TagsAndFlagsUI
 --- @field LeftContainer ExtuiChildWindow
 --- @field RightContainer ExtuiChildWindow
 --- @field TargetLabel ExtuiText
@@ -50,6 +54,7 @@ function Scribe:Initialize()
     local layoutRow = layoutTab:AddRow()
     local leftCol = layoutRow:AddCell()
     local rightCol = layoutRow:AddCell()
+
     -- Hover targets
     self.TargetGroup = leftCol:AddGroup("TargetGroup")
     self.TargetHoverLabel = self.TargetGroup:AddText("Hovered: ")
@@ -59,7 +64,10 @@ function Scribe:Initialize()
     -- Mouse subscriptions to update scribe target
     self:SetupMouseSubscriptions()
     
-    self.EntityCardContainer = leftCol:AddGroup("")
+    -- self.EntityCardContainer = leftCol:AddGroup("")
+    self.EntityCard = EntityCard:Init(leftCol)
+    
+    -- Search bar
     self.HideInvalidNodeChk = leftCol:AddCheckbox("Hide Non-matches", true)
     self.HideInvalidNodeChk:Tooltip():AddText("\t".."When searching, hides nodes that do not match the search criteria.")
     self.TreeSearch = leftCol:AddInputText("")
@@ -70,8 +78,10 @@ function Scribe:Initialize()
     self.TreeSearch.AutoSelectAll = true
     self.TreeSearch.OnChange = function() self:Search(self.TreeSearch.Text) end
     
+    -- Components and Properties
     self.LeftContainer = leftCol:AddChildWindow("")
     self.RightContainer = rightCol:AddChildWindow("")
+    self.TagsAndFlags = TagsAndFlags:Init(self.LeftContainer)
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
 
@@ -89,6 +99,7 @@ function Scribe:Initialize()
     -- RPrint("Readying up...")
     ScribeReady:OnNext(true)
 end
+
 function Scribe:CreateMenus()
     -- Create main menu
     local windowMainMenu = self.Window:AddMainMenu()
@@ -160,7 +171,6 @@ Themes and an Event Logger can be found in the menu bar.
     end)
 end)
 
-
 ---@param intf LocalPropertyInterface|NetworkPropertyInterface
 function Scribe:ChangeInterface(intf)
     -- Do other stuff for networking possibly?
@@ -221,9 +231,9 @@ Scribe.Search = Inspector.Search
 
 ---@param target EntityHandle|string?
 function Scribe:UpdateInspectTarget(target)
-    if self.EntityCardContainer ~= nil then
-        Imgui.ClearChildren(self.EntityCardContainer)
-    end
+    -- if self.EntityCardContainer ~= nil then
+    --     Imgui.ClearChildren(self.EntityCardContainer)
+    -- end
     if self.TreeView ~= nil then
         self.LeftContainer:RemoveChild(self.TreeView)
         self.TreeView = nil
@@ -242,11 +252,16 @@ function Scribe:UpdateInspectTarget(target)
     if targetEntity ~= nil then
         self.Target = targetEntity
         self.TargetId = target
-        Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
+
+        -- Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
+        self.EntityCard:Update(targetEntity)
+        self.TagsAndFlags:Update(targetEntity)
+
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
         self.TreeView.IDContext = Ext.Math.Random()
+
         entityName = (GetEntityName(targetEntity) or tostring(targetEntity))
         self.PropertiesView:Clear()
     end

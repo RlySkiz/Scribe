@@ -18,7 +18,9 @@ Scribe.AllWindows = Scribe.AllWindows or {}
 
 RequireFiles("Lib/", {
     "Aahz/_Init",
+    "Skiz/_Init",
 })
+
 -- First time Scribe usage
 FirstTime = RX.ReplaySubject.Create(1)
 local firstTimeAgreed = LocalSettings:Get("FirstTimeAgreed")

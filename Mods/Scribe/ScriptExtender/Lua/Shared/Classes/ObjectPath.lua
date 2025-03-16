@@ -64,6 +64,10 @@ function ObjectPath:HasProperties()
     end
 end
 
+function ObjectPath:GetLast()
+    return self.Path[#self.Path]
+end
+
 function ObjectPath:__tostring()
     local pathStr = ""
     for _, key in ipairs(self.Path) do

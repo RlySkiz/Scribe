@@ -132,6 +132,14 @@ function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
             Scribe.PropertyWatch:AddWatch(propertyPath.Root --[[@as EntityHandle]], propertyPath)
         end
     end
+    local addToCardButton = popup:AddButton("Add to Card")
+    addToCardButton.Visible = false -- TODO: Remove when Watcher logic is implemented
+    addToCardButton.OnClick = function()
+        local inspector = Scribe:GetOrCreateInspector(self.Target)
+        if inspector.EntityCard then
+            inspector.EntityCard:AddWatcher(propertyPath)
+        end
+    end
     selectable.OnClick = function()
         selectable.Selected = false
         popup:Open()

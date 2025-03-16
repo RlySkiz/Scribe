@@ -1,7 +1,8 @@
 local H = Ext.Require("Lib/Norbyte/Helpers.lua")
 local GetEntityName = H.GetEntityName
 local GetPropertyMeta = H.GetPropertyMeta
-
+local EntityCard = require("Lib.Skiz.Client.Classes.EntityCard")
+local TagsAndFlags = require("Lib.Skiz.Client.Classes.TagsAndFlagsUI")
 local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 
 --- @class Inspector
@@ -9,6 +10,10 @@ local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 --- @field LeftContainer ExtuiChildWindow
 --- @field RightContainer ExtuiChildWindow
 --- @field TargetLabel ExtuiText
+--- @field EntityCard EntityCard
+--- @field TagsAndFlagsContainer ExtuiGroup
+--- @field TagComponentsContainer ExtuiCollapsingHeader
+--- @field ObjectFlagsContainer ExtuiCollapsingHeader
 --- @field TreeView ExtuiTree
 --- @field PropertiesView PropertyListView
 --- @field Target EntityHandle?
@@ -19,6 +24,11 @@ local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
 Inspector = {
     Instances = {}
 }
+
+---@class Inspector: MetaClass
+local Inspector = _Class:Create("Inspector", nil, {
+    Instances = {}
+})
 
 ---@return Inspector
 ---@param intf LocalPropertyInterface|NetworkPropertyInterface
@@ -58,19 +68,21 @@ function Inspector:Init(instanceId)
     local layoutRow = layoutTab:AddRow()
     local leftCol = layoutRow:AddCell()
     local rightCol = layoutRow:AddCell()
-    self.LeftContainer = leftCol:AddChildWindow("")
-    self.RightContainer = rightCol:AddChildWindow("")
+
     -- Target Group is only applicable for global windows
-    self.TargetGroup = self.LeftContainer:AddGroup("TargetGroup"..instanceId)
+    self.TargetGroup = leftCol:AddGroup("TargetGroup"..instanceId)
     self.TargetHoverLabel = self.TargetGroup:AddText("Hovered: ")
     self.TargetLabel = self.TargetGroup:AddText("")
     self.TargetLabel.SameLine = true
     self.TargetGroup.Visible = false
 
-    self.EntityCardContainer = self.LeftContainer:AddGroup("")
-    self.HideInvalidNodeChk = self.LeftContainer:AddCheckbox("Hide Non-matches", true)
+    -- self.EntityCardContainer = self.LeftContainer:AddGroup("")
+    self.EntityCard = EntityCard:Init(leftCol)
+    
+    -- Search bar
+    self.HideInvalidNodeChk = leftCol:AddCheckbox("Hide Non-matches", true)
     self.HideInvalidNodeChk:Tooltip():AddText("\t".."When searching, hides nodes that do not match the search criteria.")
-    self.TreeSearch = self.LeftContainer:AddInputText("")
+    self.TreeSearch = leftCol:AddInputText("")
     self.TreeSearch.SameLine = true
     self.TreeSearch.Hint = "Search..."
     self.TreeSearch.EscapeClearsAll = true
@@ -78,6 +90,10 @@ function Inspector:Init(instanceId)
     self.TreeSearch.AutoSelectAll = true
     self.TreeSearch.OnChange = function() self:Search(self.TreeSearch.Text) end
 
+    -- Components and Properties
+    self.LeftContainer = leftCol:AddChildWindow("")
+    self.RightContainer = rightCol:AddChildWindow("")
+    self.TagsAndFlags = TagsAndFlags:Init(self.LeftContainer)
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
 
@@ -220,10 +236,14 @@ function Inspector:ExpandNode(node)
     local children = {}
     self.PropertyInterface:FetchChildren(node.UserData.Path, function (nodes, properties, typeInfo)
         for _,info in ipairs(nodes) do
-            if not tonumber(info.Key) then
-                table.insert(searchKeyTbl, tostring(info.Key))
+            -- Check if node information returns as a tag or flag
+            if (LocalSettings:Get("SeparateTagsAndFlags") and not TagsAndFlags.Is(info.Key)) then
+                -- Handle normal components
+                if not tonumber(info.Key) then
+                    table.insert(searchKeyTbl, tostring(info.Key))
+                end
+                table.insert(children, self:AddExpandedChild(node, info.Key, info.CanExpand))
             end
-            table.insert(children, self:AddExpandedChild(node, info.Key, info.CanExpand))
         end
         for _,info in ipairs(properties) do
             table.insert(propKeys, tostring(info.Key))
@@ -257,9 +277,9 @@ end
 
 ---@param target EntityHandle|string?
 function Inspector:UpdateInspectTarget(target)
-    if self.EntityCardContainer ~= nil then
-        Imgui.ClearChildren(self.EntityCardContainer)
-    end
+    -- if self.EntityCardContainer ~= nil then
+    --     Imgui.ClearChildren(self.EntityCardContainer)
+    -- end
     if self.TreeView ~= nil then
         self.LeftContainer:RemoveChild(self.TreeView)
         self.TreeView = nil
@@ -281,7 +301,11 @@ function Inspector:UpdateInspectTarget(target)
         self.Target = targetEntity
         self.TargetId = target
         self.Instances[targetEntity] = self
-        Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
+
+        -- Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
+        self.EntityCard:Update(targetEntity)
+        self.TagsAndFlags:Update(targetEntity)
+
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end

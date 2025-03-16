@@ -13,7 +13,11 @@ Only works while the window is open.
 Check the small "!" buttons to look up additional information about resources.
 Component names are clickable to be put on a watchlist.
 Themes and an Event Logger can be found in the menu bar.</content>
+
     <content contentuid="ha64ecf45799246e88d09006f7b1de9154722" version="1">Tools</content>
     <content contentuid="hdf8f0e06268b4de49697409538636d34gc7c" version="1">Close</content>
     <content contentuid="hd0460c85bbf3428b8503059f4ee8903fa413" version="1">Property Watch</content>
+    
+    <content contentuid="h415a6f6f4a3943478768502bf2e5e9a78d7b" version="1">General Settings</content>
+    <content contentuid="hf3f0081755c94d6aab8f745bbebe900182bb" version="1">Separate Tag and Flag Components</content>
 </contentList>
