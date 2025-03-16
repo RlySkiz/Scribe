@@ -109,24 +109,34 @@ function EntityCard:Update(entity)
 
     --#region Position and rotation - Should be optional via EntityCard subscription -- Maybe add it back + automatic position updates
     if entity.Transform then
+        local position = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(entity.Transform.Transform.Translate))
+        local rotation = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(Helpers.Math.QuatToEuler(entity.Transform.Transform.RotationQuat)))
+        local positionText
+
         local buttonGroup = self.Container:AddGroup("TransformButtons")
 
         -- TODO: Fix infinite snapping even when unchecking
-        -- local followCheckbox = buttonGroup:AddCheckbox("")
-        -- followCheckbox.OnChange = function()
-        --     local tickHandler
-        --     if followCheckbox.Checked == true then
-        --         tickHandler = Ext.Events.Tick:Subscribe(function () 
-        --             if entity and entity.Transform then
-        --                 Camera.SnapCameraTo(entity)
-        --             end
-        --         end)
-        --     else
-        --         if tickHandler then
-        --             Ext.Events.Tick:Unsubscribe(tickHandler)
-        --         end
-        --     end
-        -- end
+        local followCheckbox = buttonGroup:AddCheckbox("")
+        local tickHandler
+        followCheckbox.OnChange = function(box)
+            if box.Checked == true and not tickHandler then
+                tickHandler = Ext.Events.Tick:Subscribe(function () 
+                    if entity and entity.Transform then
+                        position = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(entity.Transform.Transform.Translate))
+                        rotation = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(Helpers.Math.QuatToEuler(entity.Transform.Transform.RotationQuat)))
+                        if positionText then
+                            positionText.Label = (string.format("Position: %s\nRotation: %s", position, rotation))
+                        end
+                        Camera.SnapCameraTo(entity)
+                    end
+                end)
+            else
+                if tickHandler then
+                    Ext.Events.Tick:Unsubscribe(tickHandler)
+                    tickHandler = nil
+                end
+            end
+        end
 
         local jumpButton = buttonGroup:AddButton("Snap")
         jumpButton.OnClick = function()
@@ -134,12 +144,11 @@ function EntityCard:Update(entity)
                 Camera.SnapCameraTo(entity)
             end
         end
-        -- jumpButton.SameLine = true
+        jumpButton.SameLine = true
 
-        local position = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(entity.Transform.Transform.Translate))
-        local rotation = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(Helpers.Math.QuatToEuler(entity.Transform.Transform.RotationQuat)))
-        local positionText = self.Container:AddText(string.format("Position: %s\nRotation: %s", position, rotation))
-        positionText.SameLine = true
+
+        positionText = self.Container:AddText(string.format("Position: %s\nRotation: %s", position, rotation))
+        -- positionText.SameLine = true
     end
 
     -- Template - Should be optional via EntityCard subscription
