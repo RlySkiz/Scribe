@@ -102,7 +102,12 @@ function Inspector:Init(instanceId)
         self.Window:Destroy()
     end
 end
-
+local function appendEmpty(node)
+    if node and node.UserData and not node.UserData.IsEmpty then
+        node.Label = node.Label.." (empty)"
+        node.UserData.IsEmpty = true
+    end
+end
 
 --- @param node ExtuiTree
 --- @param name string
@@ -118,9 +123,7 @@ function Inspector:AddExpandedChild(node, name, canExpand)
     child.SpanAvailWidth = true
     local hasProps = child.UserData.Path:HasProperties()
     if not hasProps and not canExpand then
-        local empty = node:AddText("(empty)")
-        empty.SameLine = true
-        empty:SetColor("Text", ImguiThemeManager:GetThemedColor('Grey'))
+        appendEmpty(child)
     end
     return child
 end
@@ -134,7 +137,9 @@ function Inspector:Search(search)
             self:ExpandNode(node)
             -- table.insert(dump, tostring(node.UserData.Path))
             for _,child in ipairs(node.Children) do
-                BuildPaths(child)
+                if child.UserData and child.UserData.Path then -- Ignore non-nodes in children
+                    BuildPaths(child)
+                end
             end
         end
         BuildPaths(self.TreeView)
@@ -168,7 +173,7 @@ function Inspector:Search(search)
             foundInChild = true
         else
             for _, child in ipairs(node.Children) do
-                if SearchNode(child, depth) then
+                if child.UserData and child.UserData.Path and SearchNode(child, depth) then
                     foundInChild = true
                 end
             end
@@ -207,6 +212,7 @@ function Inspector:Search(search)
     else
         local function ResetNodeVisibility(t) -- :shake:
             t.Visible = true
+
             ImguiThemeManager:ToggleHighlight(self.TreeView, 0)
             for _, child in ipairs(t.Children) do
                 ResetNodeVisibility(child)
@@ -226,18 +232,13 @@ end
 function Inspector:ExpandNode(node)
     if node.UserData.Expanded then return end
 
-    local tempEmpty = node:AddText("(empty)")
-    tempEmpty.SameLine = true
-    tempEmpty:SetColor("Text", ImguiThemeManager:GetThemedColor('Grey'))
-    node.UserData.EmptyMarker = tempEmpty
-
     local searchKeyTbl = {}
     local propKeys = {}
     local children = {}
     self.PropertyInterface:FetchChildren(node.UserData.Path, function (nodes, properties, typeInfo)
         for _,info in ipairs(nodes) do
             -- Check if node information returns as a tag or flag
-            if (LocalSettings:Get("SeparateTagsAndFlags") and not TagsAndFlags.Is(info.Key)) then
+            if not TagsAndFlags.Is(info.Key) or not LocalSettings:GetOr(false, "SeparateTagsAndFlags") then
                 -- Handle normal components
                 if not tonumber(info.Key) then
                     table.insert(searchKeyTbl, tostring(info.Key))
@@ -248,24 +249,23 @@ function Inspector:ExpandNode(node)
         for _,info in ipairs(properties) do
             table.insert(propKeys, tostring(info.Key))
         end
-        if self.AutoExpandChildren and table.count(propKeys) == 0 then
+        if table.count(propKeys) == 0 then
+            appendEmpty(node)
             -- We don't have any properties ourselves, expand children that have properties
             for _,child in ipairs(children) do
-                if child.UserData.Path:HasProperties() then
+                if child.UserData and child.UserData.Path and child.UserData.Path:HasProperties() then
                     self:ExpandNode(child)
-                    child:SetOpen(true)
+                    if self.AutoExpandChildren then
+                        child:SetOpen(true)
+                    end
                 end
-            end
-        else
-            if node.UserData.EmptyMarker then
-                node.UserData.EmptyMarker:Destroy()
-                node.UserData.EmptyMarker = nil
             end
         end
     end)
     node.UserData.SearchKey = ("[%s]:%s>%s"):format(node.Label, table.concat(searchKeyTbl, ","), table.concat(propKeys, ",")):lower()
 
     node.UserData.Expanded = true
+    -- node:SetOpen(true)
 end
 
 
@@ -307,9 +307,10 @@ function Inspector:UpdateInspectTarget(target)
         self.TagsAndFlags:Update(targetEntity)
 
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
+        self.TreeView.IDContext = Ext.Math.Random()
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
         self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
-        self.TreeView.IDContext = Ext.Math.Random()
+        self.TreeView:OnExpand()
         entityName = (GetEntityName(targetEntity) or tostring(targetEntity))
         self.PropertiesView:Clear()
     end

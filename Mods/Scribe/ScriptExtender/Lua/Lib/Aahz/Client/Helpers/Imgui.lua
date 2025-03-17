@@ -5,7 +5,7 @@ function Imgui.ScaleFactor()
     return Ext.IMGUI.GetViewportSize()[2] / 1440
 end
 function Imgui.ClearChildren(el)
-    if el == nil then return end
+    if el == nil or not pcall(function() return el.Handle end) then return end
     for _, v in pairs(el.Children) do
         if v.UserData ~= nil and v.UserData.SafeKeep ~= nil then
             v.UserData.SafeKeep()

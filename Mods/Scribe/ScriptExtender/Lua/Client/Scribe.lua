@@ -259,9 +259,9 @@ function Scribe:UpdateInspectTarget(target)
 
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
-        self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
         self.TreeView.IDContext = Ext.Math.Random()
-
+        self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
+        self.TreeView:OnExpand()
         entityName = (GetEntityName(targetEntity) or tostring(targetEntity))
         self.PropertiesView:Clear()
     end

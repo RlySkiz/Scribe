@@ -69,7 +69,7 @@ end
 function EntityCard:Update(entity)
     self:UpdateSettingsRoot(entity)
     Imgui.ClearChildren(self.Container)
-
+    -- FIXME @RlySkiz should check if container still exists, inspectors can self:kill() at any time
     local cardSeparator = self.Container:AddSeparatorText("Entity Card:")
     
     local dumpButton = self.Container:AddButton("Dump")
@@ -101,8 +101,7 @@ function EntityCard:Update(entity)
             iconIdentifier.SizeHint = {-1, 32}
             iconIdentifier.ReadOnly = true
         else
-            _P("[Scribe] - No icon found for Entity:")
-            _P(entity) -- EntityHandle because some might not have Uuid component
+            -- SDebug("No icon found for Entity: %s", entity) -- EntityHandle because some might not have Uuid component
             -- Sends a console warning if it can't find icon, and no portraits, boo.
         end
     end
@@ -118,23 +117,23 @@ function EntityCard:Update(entity)
         -- TODO: Fix infinite snapping even when unchecking
         local followCheckbox = buttonGroup:AddCheckbox("")
         local tickHandler
+        local function cleanupHandler() if tickHandler then Ext.Events.Tick:Unsubscribe(tickHandler) tickHandler = nil end end
         followCheckbox.OnChange = function(box)
             if box.Checked == true and not tickHandler then
-                tickHandler = Ext.Events.Tick:Subscribe(function () 
+                tickHandler = Ext.Events.Tick:Subscribe(function ()
                     if entity and entity.Transform then
                         position = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(entity.Transform.Transform.Translate))
                         rotation = string.format("X: %.2f, Y: %.2f, Z: %.2f", table.unpack(Helpers.Math.QuatToEuler(entity.Transform.Transform.RotationQuat)))
-                        if positionText then
+                        if positionText and pcall(function() return positionText.Label end) then
                             positionText.Label = (string.format("Position: %s\nRotation: %s", position, rotation))
+                        else
+                            cleanupHandler()
                         end
                         Camera.SnapCameraTo(entity)
                     end
                 end)
             else
-                if tickHandler then
-                    Ext.Events.Tick:Unsubscribe(tickHandler)
-                    tickHandler = nil
-                end
+                cleanupHandler()
             end
         end
 
