@@ -73,15 +73,15 @@ function Scribe.GenerateSettingsWindow()
     local generalSettingsGroup = Scribe.SettingsWindow:AddGroup("GeneralSettings")
     generalSettingsGroup:AddText(Ext.Loca.GetTranslatedString("h415a6f6f4a3943478768502bf2e5e9a78d7b", "General Settings"))
     local tagFlagCheck = generalSettingsGroup:AddCheckbox(Ext.Loca.GetTranslatedString("hf3f0081755c94d6aab8f745bbebe900182bb", "Separate Tag and Flag Components"))
-    if LocalSettings:Get("SeparateTagsAndFlags") then -- If it already exists and is set to true set default to be checked
+    if LocalSettings:Get(Static.Settings.SeparateTagsAndFlags) then -- If it already exists and is set to true set default to be checked
         tagFlagCheck.Checked = true
     end
     tagFlagCheck.OnChange = function()
         if tagFlagCheck.Checked then
-            LocalSettings:AddOrChange("SeparateTagsAndFlags", true)
+            LocalSettings:AddOrChange(Static.Settings.SeparateTagsAndFlags, true)
             -- Scribe.UpdateAllInstances()
         else
-            LocalSettings:AddOrChange("SeparateTagsAndFlags", false)
+            LocalSettings:AddOrChange(Static.Settings.SeparateTagsAndFlags, false)
             -- Scribe.UpdateAllInstances()
         end
     end

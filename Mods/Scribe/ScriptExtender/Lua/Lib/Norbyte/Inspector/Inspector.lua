@@ -238,7 +238,7 @@ function Inspector:ExpandNode(node)
     self.PropertyInterface:FetchChildren(node.UserData.Path, function (nodes, properties, typeInfo)
         for _,info in ipairs(nodes) do
             -- Check if node information returns as a tag or flag
-            if not TagsAndFlags.Is(info.Key) or not LocalSettings:GetOr(false, "SeparateTagsAndFlags") then
+            if not TagsAndFlags.Is(info.Key) or not LocalSettings:GetOr(false, Static.Settings.SeparateTagsAndFlags) then
                 -- Handle normal components
                 if not tonumber(info.Key) then
                     table.insert(searchKeyTbl, tostring(info.Key))

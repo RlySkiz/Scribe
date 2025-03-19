@@ -3,6 +3,7 @@ local PropertyEditorFactory = require("Lib.Norbyte.Inspector.PropertyEditor")
 ---@class EntityCard: MetaClass
 --- @field Entity EntityHandle
 --- @field Container ExtuiTreeParent
+--- @field PathSubscriptions ObjectPath[]
 EntityCard = _Class:Create("EntityCard", nil, {
     Entity = nil,
     Container = nil,
@@ -19,7 +20,7 @@ end
 
 ---@param objectPath ObjectPath
 function EntityCard:AddWatcher(objectPath)
-    local currentSubs = LocalSettings:Get("EntityCardSubscriptions") or {} -- Get saved subscriptions from settings or empty table
+    local currentSubs = LocalSettings:Get(Static.Settings.EntityCardSubscriptions) or {} -- Get saved subscriptions from settings or empty table
     if currentSubs and #currentSubs >0 then
         for _,wouldBeObjectPath in pairs(currentSubs) do -- Check if its not already in there
             if wouldBeObjectPath.Path == objectPath.Path then
@@ -29,21 +30,21 @@ function EntityCard:AddWatcher(objectPath)
     end
 
     table.insert(currentSubs, objectPath) -- Add the new path to the list
-    LocalSettings:AddOrChange("EntityCardSubscriptions", currentSubs) -- Readd to Settings
+    LocalSettings:AddOrChange(Static.Settings.EntityCardSubscriptions, currentSubs) -- Readd to Settings
 
     self:Update(self.Entity)
 end
 
 ---@param objectPath ObjectPath
 function EntityCard:RemoveWatcher(objectPath)
-    local currentSubs = LocalSettings:Get("EntityCardSubscriptions")
+    local currentSubs = LocalSettings:Get(Static.Settings.EntityCardSubscriptions)
     for i, pathEntry in pairs(self.PathSubscriptions) do
         if pathEntry.Path == objectPath.Path then
             -- Remove from lists
             table.remove(self.PathSubscriptions, i)
             table.remove(currentSubs, i)
 
-            LocalSettings:AddOrChange("EntityCardSubscriptions", currentSubs) -- Update Settings
+            LocalSettings:AddOrChange(Static.Settings.EntityCardSubscriptions, currentSubs) -- Update Settings
 
             self:Update(self.Entity)
         end
@@ -54,7 +55,7 @@ end
 function EntityCard:UpdateSettingsRoot(entity)
     self.Entity = entity
     self.PathSubscriptions = {}
-    local subscriptions = LocalSettings:Get("EntityCardSubscriptions")
+    local subscriptions = LocalSettings:Get(Static.Settings.EntityCardSubscriptions)
     if subscriptions and #subscriptions > 0 then
         for _,wouldBeObjectPath in pairs(subscriptions) do
             -- Since it was saved as .json we have to regenerate the ObjectPath object for later :Resolve() use

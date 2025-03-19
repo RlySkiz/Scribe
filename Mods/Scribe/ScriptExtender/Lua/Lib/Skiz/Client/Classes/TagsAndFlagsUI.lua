@@ -62,7 +62,7 @@ function TagsAndFlagsUI:Update(entity)
     self.Entity = entity
     Imgui.ClearChildren(self.Container)
 
-    if LocalSettings:Get("SeparateTagsAndFlags") then -- ScribeSettings is set to separate them
+    if LocalSettings:Get(Static.Settings.SeparateTagsAndFlags) then -- ScribeSettings is set to separate them
         -- Rebuild
         self.TagComponentsContainer = self.Container:AddCollapsingHeader("Tag Components")
         self.TagComponentsContainer.Visible = false

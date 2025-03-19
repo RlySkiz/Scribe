@@ -25,7 +25,7 @@ I acknowledge my usage of this tool is at my own risk.
     end
     closeButton.OnClick = function()
         FirstTime:OnNext(chk.Checked)
-        LocalSettings:AddOrChange("FirstTimeAgreed", true)
+        LocalSettings:AddOrChange(Static.Settings.FirstTimeAgreed, true)
         firstTimeWindow:Destroy()
     end
     firstTimeWindow.OnClose = function()

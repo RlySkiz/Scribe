@@ -23,7 +23,7 @@ RequireFiles("Lib/", {
 
 -- First time Scribe usage
 FirstTime = RX.ReplaySubject.Create(1)
-local firstTimeAgreed = LocalSettings:Get("FirstTimeAgreed")
+local firstTimeAgreed = LocalSettings:Get(Static.Settings.FirstTimeAgreed)
 if firstTimeAgreed then
     FirstTime:OnNext(true)
 end
