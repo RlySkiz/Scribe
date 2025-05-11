@@ -81,7 +81,7 @@ function Scribe:Initialize()
     -- Components and Properties
     self.LeftContainer = leftCol:AddChildWindow("")
     self.RightContainer = rightCol:AddChildWindow("")
-    self.TagsAndFlags = TagsAndFlags:Init(self.LeftContainer)
+    -- self.TagsAndFlags = TagsAndFlags:Init(self.LeftContainer)
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
 
@@ -255,7 +255,7 @@ function Scribe:UpdateInspectTarget(target)
 
         -- Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
         self.EntityCard:Update(targetEntity)
-        self.TagsAndFlags:Update(targetEntity)
+        -- self.TagsAndFlags:Update(targetEntity)
 
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }

@@ -35,7 +35,8 @@ function ObjectPath:Resolve(stopAtRecursion)
         seen[obj] = true
 
         -- Jank workaround for accessing elements in a set
-        if type(obj) == "userdata" and Ext.Types.GetValueType(obj) == "Set" then
+        local vt = Ext.Types.GetValueType(obj)
+        if type(obj) == "userdata" and (vt == "Set" or string.sub(vt or "", 1, 3) == "Set") then
             obj = Ext.Types.GetHashSetValueAt(obj, name)
         else
             obj = obj[name]

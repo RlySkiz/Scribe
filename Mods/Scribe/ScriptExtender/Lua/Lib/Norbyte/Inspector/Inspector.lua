@@ -253,7 +253,7 @@ function Inspector:ExpandNode(node)
             appendEmpty(node)
             -- We don't have any properties ourselves, expand children that have properties
             for _,child in ipairs(children) do
-                if child.UserData and child.UserData.Path and child.UserData.Path:HasProperties() then
+                if child and child.UserData and child.UserData.Path and child.UserData.Path:HasProperties() then
                     self:ExpandNode(child)
                     if self.AutoExpandChildren then
                         child:SetOpen(true)
