@@ -66,6 +66,8 @@ ECSLoggerNetOps = {
 ---@field Running boolean #query only, managed by OnStartStop
 ---@field OnNewChange Subject<ECSChange> # pushes new changes that pass filters
 ---@field OnFrameCount Subject<integer> # observable frame number
+---@field OnIgnored Subject<ECSChange> # pushes an ECSChange that wasn't logged because of ignore settings
+---@field OnWatched Subject<ECSChange> # pushes an ECSChange when a Watched component was seen
 ECSLogger = _Class:Create("ECSLogger", nil, {
     FrameNo = 1,
     ChangeCounts = {},
@@ -99,6 +101,8 @@ function ECSLogger:Init()
     self.OnStartStop = RX.ReplaySubject.Create(1)
     self.OnFrameCount = RX.Subject.Create()
     self.OnNewChange = RX.Subject.Create()
+    self.OnIgnored = RX.Subject.Create()
+    self.OnWatched = RX.Subject.Create()
     local function errorWarnStartStop() SWarn("ECSLogger unable to start/stop.") self.Ready = false end
     local function errorWarnFrames() SWarn("ECSLogger unable to count frames.") self.Ready = false end
     self.OnStartStop:Subscribe(function(b) self.Running = b end, errorWarnStartStop, errorWarnStartStop)
@@ -189,12 +193,14 @@ function ECSLogger:CheckChanges(entity, changes)
     end
 
     local dumpThisEntity = false
+    local watched = false
 
     -- Go through each component change and inspect
     ---@param name string
     ---@param component ECSComponentChange
     for name,component in table.pairsByKeys(changes.ComponentChanges) do
-        if self:IsComponentChangePrintable(component) then
+        -- local excluded,ignored = self:IsComponentExcluded(component), self:IsComponentIgnored(component)
+        -- if not excluded and not ignored then
             if self.TrackChangeCounts then
                 -- Track how many times component events happen over the logging period
                 if self.ChangeCounts[component.Name] == nil then
@@ -223,14 +229,16 @@ function ECSLogger:CheckChanges(entity, changes)
                     Cache:AddOrChange(CacheData.UnmappedComponentNames, self.UnknownComponents)
                 end
             end
-            if self.AutoDump and self.WatchedComponents[component.Name] then
-                dumpThisEntity = true
+            if self.WatchedComponents[component.Name] then
+                watched = true
+                if self.AutoDump then
+                    dumpThisEntity = true
+                end
             end
-        end
-        if dumpThisEntity then
-            Helpers.Dump(entity, string.format("AutoDump-%s", self:GetEntityName(entity)))
-        end
+        -- end
     end
+    if dumpThisEntity then Helpers.Dump(entity, string.format("AutoDump-%s", self:GetEntityName(entity))) end
+    if watched then self.OnWatched(changes) end
 end
 
 ---Parse an entity log into a new ECSChange entry
@@ -274,25 +282,32 @@ end
 function ECSLogger:OnTick()
     local trace = Ext.Entity.GetTrace()
 
+    local function checkEntity(entity, changes)
+        ---@type ECSChange
+        local change = parseComponentChanges(entity, changes, self.FrameNo)
+        if not self:IsEntityExcluded(change.Entity, change) then
+            local excluded,ignored = self:EntityGetNonprintableReason(change.Entity, change)
+            if not ignored then
+                if not excluded then
+                    self.OnNewChange(change)
+                end
+            else
+                -- Entity has ignored components
+                self.OnIgnored(change)
+            end
+        end
+    end
+
     if self.WatchedEntity then
         -- Only watching a single entity
         local changes = trace.Entities[self.WatchedEntity] --[[@as EcsECSEntityLog]]
         if changes then
             -- This watched entity had changes
-            ---@type ECSChange
-            local change = parseComponentChanges(self.WatchedEntity, changes, self.FrameNo)
-            if self:EntityHasPrintableChanges(change.Entity, change) then
-                self.OnNewChange(change)
-            end
-        
+            checkEntity(self.WatchedEntity, changes)
         end
     else
         for entity,changes in pairs(trace.Entities) do
-            ---@type ECSChange
-            local change = parseComponentChanges(entity, changes, self.FrameNo)
-            if self:EntityHasPrintableChanges(change.Entity, change) then
-                self.OnNewChange(change)
-            end
+            checkEntity(entity, changes)
         end
     end
 
@@ -347,56 +362,68 @@ end
 ---@param entity EntityHandle
 ---@param changes ECSChange
 ---@return boolean
-function ECSLogger:EntityHasPrintableChanges(entity, changes)
-    if self.EntityCreations ~= nil and self.EntityCreations ~= changes.EntityCreated then return false end
-    if self.EntityDeletions ~= nil and self.EntityDeletions ~= changes.EntityDestroyed then return false end
+function ECSLogger:IsEntityExcluded(entity, changes)
+    if self.EntityCreations ~= nil and self.EntityCreations ~= changes.EntityCreated then return true end
+    if self.EntityDeletions ~= nil and self.EntityDeletions ~= changes.EntityDestroyed then return true end
 
     if self.ExcludeInterrupts and entity:HasRawComponent("eoc::interrupt::DataComponent") then
-        return false
+        return true
     end
 
     if self.ExcludeBoosts and entity:HasRawComponent("eoc::BoostInfoComponent") then
-        return false
+        return true
     end
 
     if self.ExcludeStatuses and entity:HasRawComponent("esv::status::StatusComponent") then
-        return false
+        return true
     end
 
     if self.ExcludePassives and entity:HasRawComponent("eoc::PassiveComponent") then
-        return false
+        return true
     end
 
     if self.ExcludeInventories and entity:HasRawComponent("eoc::inventory::DataComponent") then
-        return false
+        return true
     end
 
-    if self.ExcludeCrowds and entity:HasRawComponent("eoc::crowds::AppearanceComponent") then return false end
+    if self.ExcludeCrowds and entity:HasRawComponent("eoc::crowds::AppearanceComponent") then return true end
 
-    if self.ExcludeSpamEntities and entity.Uuid and self.SpamEntities[entity.Uuid.EntityUuid] then return false end
-
-    for _,component in pairs(changes.ComponentChanges) do
-        if self:IsComponentChangePrintable( component) then
-            return true
-        end
-    end
+    if self.ExcludeSpamEntities and entity.Uuid and self.SpamEntities[entity.Uuid.EntityUuid] then return true end
 
     return false
 end
 
+---@param entity EntityHandle
+---@param changes ECSChange
+---@return boolean excluded -- true if any component is excluded
+---@return boolean ignored -- true if any component is ignored
+function ECSLogger:EntityGetNonprintableReason(entity, changes)
+    local excluded = false
+    local ignored = false
+    for _,component in pairs(changes.ComponentChanges) do
+        if self:IsComponentExcluded( component) then
+            excluded = true
+        end
+        if self:IsComponentIgnored(component) then
+            ignored = true
+        end
+    end
+    return excluded,ignored
+end
+
 ---@param component ECSComponentChange
 ---@return boolean
-function ECSLogger:IsComponentChangePrintable(component)
-    -- TODO switch to private.IgnoredComponents which should be configurable with DualPane
-    if self.OneFrameComponents ~= nil and self.OneFrameComponents ~= component.OneFrame then return false end
-    if self.ReplicatedComponents ~= nil and self.ReplicatedComponents ~= component.ReplicatedComponent then return false end
-    if self.ComponentCreations ~= nil and self.ComponentCreations ~= component.Created then return false end
-    if self.ComponentDeletions ~= nil and self.ComponentDeletions ~= component.Destroyed then return false end
-    if self.ComponentReplications ~= nil and self.ComponentReplications ~= component.Replicate then return false end
+function ECSLogger:IsComponentExcluded(component)
+    if self.OneFrameComponents ~= nil and self.OneFrameComponents ~= component.OneFrame then return true end
+    if self.ReplicatedComponents ~= nil and self.ReplicatedComponents ~= component.ReplicatedComponent then return true end
+    if self.ComponentCreations ~= nil and self.ComponentCreations ~= component.Created then return true end
+    if self.ComponentDeletions ~= nil and self.ComponentDeletions ~= component.Destroyed then return true end
+    if self.ComponentReplications ~= nil and self.ComponentReplications ~= component.Replicate then return true end
 
-    if self.IgnoredComponents[component.Name] == true then return false end
-
-    return true
+    return false
+end
+function ECSLogger:IsComponentIgnored(component)
+    return self.IgnoredComponents[component.Name] == true
 end
 
 -- Use original class definition

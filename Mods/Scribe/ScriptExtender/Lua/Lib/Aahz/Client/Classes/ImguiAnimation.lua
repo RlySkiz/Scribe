@@ -34,8 +34,49 @@ function Imgui.AnimateColor(el, colorProp, initialColor, highlightColor, animati
 
         el:SetColor(colorProp, Helpers.Color.NormalizedLerp(initialColor, highlightColor, percent))
     end
-    local function resetColor() el:SetColor(colorProp, initialColor) _P(string.format("Reset to: <%s, %s, %s, %s>", table.unpack(initialColor))) end
+    local function resetColor()
+        el:SetColor(colorProp, initialColor)
+        -- SPrint(string.format("Reset to: <%s, %s, %s, %s>", table.unpack(initialColor)))
+    end
     Imgui.MainTick:Take(animationLength):Subscribe(simpleTween, resetColor, resetColor)
+end
+
+---@type table<integer, Subscription>
+local currentFadeMap = {}
+
+---Fades an imgui element's GuiColor colorProp from an initial color to a fade color smoothly over fadeTime seconds
+---@param el ExtuiStyledRenderable
+---@param colorProp GuiColor
+---@param initialColor vec4
+---@param fadeColor vec4
+---@param fadeTime number # time in seconds for the fade effect
+function Imgui.FadeColor(el, colorProp, initialColor, fadeColor, fadeTime)
+    local framesPassed = 0
+    local totalFrames = fadeTime * 60  -- Assuming 60 fps
+
+    -- Cancel any ongoing fade for this element
+    if currentFadeMap[el.Handle] then
+        currentFadeMap[el.Handle]:Unsubscribe()
+        currentFadeMap[el.Handle] = nil
+        -- SWarn("Fade Reset")
+    end
+
+    -- based on frame number, lerp between initial color and fade color
+    local function fadeTween(frame)
+        framesPassed = framesPassed + 1
+        local percent = framesPassed / totalFrames * 100  -- Convert to percent (0-100)
+        el:SetColor(colorProp, Helpers.Color.NormalizedLerp(initialColor, fadeColor, percent))
+        if frame % 10 == 0 then  -- Print every 10 frames for debugging
+            -- RPrint(("Fading... %s"):format(percent))
+        end
+    end
+    local function resetColor()
+        el:SetColor(colorProp, fadeColor)
+        currentFadeMap[el.Handle] = nil
+    end
+
+    -- Subscribe to the fade animation and store the subscription
+    currentFadeMap[el.Handle] = Imgui.MainTick:Take(totalFrames):Subscribe(fadeTween, resetColor, resetColor)
 end
 
 --- Tracks original pre-jiggle position of imgui element, by handle

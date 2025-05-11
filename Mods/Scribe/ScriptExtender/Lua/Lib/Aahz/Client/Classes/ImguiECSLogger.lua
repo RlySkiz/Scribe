@@ -20,6 +20,8 @@ local NetworkEvents = Ext.Require("Shared/Classes/NetworkEvents.lua")
 --- @field AutoInspect boolean
 --- @field IgnoreComponentWindow ExtuiWindow
 --- @field IgnoreDualPane ImguiDualPane
+--- @field WatchedSelectable ExtuiSelectable
+--- @field IgnoredSelectable ExtuiSelectable
 --- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
 --- @field RunningHue integer
 --- @field EntityColorMap table<string, vec4>
@@ -177,8 +179,14 @@ function ImguiECSLogger:InitializeLayout()
         self:RebuildLog()
     end
 
-    self:SetupToggles()
     self:CreateComponentWatchWindow()
+    self:CreateIgnoredComponentsWindow()
+    
+    -- Watched/Ignored selectables
+    self:CreateWatchedIgnoredSelectables()
+
+
+    self:SetupToggles()
     -- Component Watch Menu setup
     local watchWindowSettingsMenu = self.SettingsMenu:AddMenu("Watched Components")
     local watchCompButton = watchWindowSettingsMenu:AddItem("Open Watch Settings")
@@ -207,7 +215,6 @@ function ImguiECSLogger:InitializeLayout()
         self:HandleContextSetting("AutoDump", c.Checked)
     end
 
-    self:CreateIgnoredComponentsWindow()
     -- TODO Component Ignore menu
     local ignoreSettingsMenu = self.SettingsMenu:AddMenu("Ignored Components")
     local ignoreCompButton = ignoreSettingsMenu:AddItem("Open Ignore Settings")
@@ -372,6 +379,68 @@ function ImguiECSLogger:CreateScribeThrobber()
         end
     end)
 end
+
+function ImguiECSLogger:CreateWatchedIgnoredSelectables()
+    local layoutTable = self.Window:AddTable("Scribe_ECSLoggerWatchedIgnored", 2)
+    layoutTable.Borders = true
+    layoutTable.SizingStretchSame = true
+    layoutTable:SetStyle("Alpha", 1)
+    local r = layoutTable:AddRow()
+    local c1 = r:AddCell()
+    local c2 = r:AddCell()
+    local annoyingSubLayoutTableWatched = c1:AddTable("Scribe_AnnoyingSubLayoutWatched", 1)
+    annoyingSubLayoutTableWatched.RowBg = true
+    local annoyingSubLayoutTableIgnored = c2:AddTable("Scribe_AnnoyingSubLayoutIgnored", 1)
+    annoyingSubLayoutTableIgnored.RowBg = true
+    local watched = annoyingSubLayoutTableWatched:AddRow():AddCell():AddSelectable("Seen Watched: 0")
+    local ignored = annoyingSubLayoutTableIgnored:AddRow():AddCell():AddSelectable("Seen Ignored: 0")
+    layoutTable.AllowItemOverlap = true
+    annoyingSubLayoutTableIgnored.AllowItemOverlap = true
+    self.WatchedSelectable = watched
+    self.IgnoredSelectable = ignored
+
+    -- Watched setup
+    watched.UserData = {
+        WatchedCount = 0,
+    }
+    -- self.WatchDualPane.OnSettle:Subscribe(function()
+    --     self.WatchedSelectable.Label = string.format("Seen Watched: %s", #self.WatchDualPane:GetSelectedOptions())
+    -- end)
+
+    self.Logger.OnWatched:Subscribe(function(change)
+        if change then
+            -- Fade color and increment watch count
+            Imgui.FadeColor(annoyingSubLayoutTableWatched, "TableRowBg", Imgui.Colors.OrangeRed, ImguiThemeManager:GetThemedColor("Accent1"), 2)
+            self.WatchedSelectable.UserData.WatchedCount = self.WatchedSelectable.UserData.WatchedCount + 1
+            self.WatchedSelectable.Label = "Seen Watched: "..self.WatchedSelectable.UserData.WatchedCount
+        end
+    end)
+
+    -- Ignored setup
+    ignored.UserData = {
+        IgnoredCount = 0,
+    }
+    
+    self.Logger.OnIgnored:Subscribe(function(change)
+        if change then
+            -- Fade color and increment ignore count
+            Imgui.FadeColor(annoyingSubLayoutTableIgnored, "TableRowBg", Imgui.Colors.MediumSeaGreen, ImguiThemeManager:GetThemedColor("Accent1"), 2)
+            self.IgnoredSelectable.UserData.IgnoredCount = self.IgnoredSelectable.UserData.IgnoredCount + 1
+            self.IgnoredSelectable.Label = "Seen Ignored: "..self.IgnoredSelectable.UserData.IgnoredCount
+        end
+    end)
+    -- brittle reset on logger reset (frame == 1)
+    self.Logger.OnFrameCount:Where(function(num) return num == 1 end):Subscribe(function(num)
+        self.IgnoredSelectable.Label = "Ignored: 0"
+        self.IgnoredSelectable.UserData.IgnoredCount = 0
+        self.WatchedSelectable.Label = "Seen Watched: 0"
+        self.WatchedSelectable.UserData.WatchedCount = 0
+    end)
+
+    watched.OnClick = function() watched.Selected = false self.WatchComponentWindow.Open = not self.WatchComponentWindow.Open end
+    ignored.OnClick = function() ignored.Selected = false self.IgnoreComponentWindow.Open = not self.IgnoreComponentWindow.Open end
+end
+
 
 function ImguiECSLogger:CreateComponentWatchWindow()
     local win = Imgui.CreateCommonWindow("ECS Logger - Watched Components", {
