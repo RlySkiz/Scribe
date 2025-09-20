@@ -115,8 +115,18 @@ function EntityCard:Update(entity)
 
         local buttonGroup = self.Container:AddGroup("TransformButtons")
 
+        local camText = buttonGroup:AddText("Camera:")
+
+        local jumpButton = buttonGroup:AddButton("Snap")
+        jumpButton.OnClick = function()
+            if entity and entity.Transform then
+                Camera.SnapCameraTo(entity)
+            end
+        end
+        jumpButton.SameLine = true
+
         -- TODO: Fix infinite snapping even when unchecking
-        local followCheckbox = buttonGroup:AddCheckbox("")
+        local followCheckbox = buttonGroup:AddCheckbox("Follow")
         local tickHandler
         local function cleanupHandler() if tickHandler then Ext.Events.Tick:Unsubscribe(tickHandler) tickHandler = nil end end
         followCheckbox.OnChange = function(box)
@@ -137,15 +147,7 @@ function EntityCard:Update(entity)
                 cleanupHandler()
             end
         end
-
-        local jumpButton = buttonGroup:AddButton("Snap")
-        jumpButton.OnClick = function()
-            if entity and entity.Transform then
-                Camera.SnapCameraTo(entity)
-            end
-        end
-        jumpButton.SameLine = true
-
+        followCheckbox.SameLine = true
 
         positionText = self.Container:AddText(string.format("Position: %s\nRotation: %s", position, rotation))
         -- positionText.SameLine = true
