@@ -1,10 +1,14 @@
 
 local GetEntityName = Helpers.GetEntityName
 local PropertyListView = require("Lib.Norbyte.Inspector.PropertyListView")
+local EntityCard = require("Lib.Skiz.Client.Classes.EntityCard")
+local TagsAndFlags = require("Lib.Skiz.Client.Classes.TagsAndFlagsUI")
 
 -- FIXME Need to settle on global Scribe somewhere and annotate :concernedsip:
 --- @class Scribe
 --- @field Window ExtuiWindow
+--- @field EntityCard EntityCard
+--- @field TagsAndFlags TagsAndFlagsUI
 --- @field LeftContainer ExtuiChildWindow
 --- @field RightContainer ExtuiChildWindow
 --- @field TargetLabel ExtuiText
@@ -50,28 +54,34 @@ function Scribe:Initialize()
     local layoutRow = layoutTab:AddRow()
     local leftCol = layoutRow:AddCell()
     local rightCol = layoutRow:AddCell()
-    self.LeftContainer = leftCol:AddChildWindow("")
-    self.RightContainer = rightCol:AddChildWindow("")
+
     -- Hover targets
-    self.TargetGroup = self.LeftContainer:AddGroup("TargetGroup")
+    self.TargetGroup = leftCol:AddGroup("TargetGroup")
     self.TargetHoverLabel = self.TargetGroup:AddText("Hovered: ")
     self.TargetLabel = self.TargetGroup:AddText("")
     self.TargetLabel.SameLine = true
-
+    
     -- Mouse subscriptions to update scribe target
     self:SetupMouseSubscriptions()
-
-    self.EntityCardContainer = self.LeftContainer:AddGroup("")
-    self.HideInvalidNodeChk = self.LeftContainer:AddCheckbox("Hide Non-matches", true)
+    
+    -- self.EntityCardContainer = leftCol:AddGroup("")
+    self.EntityCard = EntityCard:Init(leftCol)
+    
+    -- Search bar
+    self.HideInvalidNodeChk = leftCol:AddCheckbox("Hide Non-matches", true)
     self.HideInvalidNodeChk:Tooltip():AddText("\t".."When searching, hides nodes that do not match the search criteria.")
-    self.TreeSearch = self.LeftContainer:AddInputText("")
+    self.TreeSearch = leftCol:AddInputText("")
     self.TreeSearch.SameLine = true
     self.TreeSearch.Hint = "Search..."
     self.TreeSearch.EscapeClearsAll = true
     self.TreeSearch.SizeHint = {-1, 32*Imgui.ScaleFactor()}
     self.TreeSearch.AutoSelectAll = true
     self.TreeSearch.OnChange = function() self:Search(self.TreeSearch.Text) end
-
+    
+    -- Components and Properties
+    self.LeftContainer = leftCol:AddChildWindow("")
+    self.RightContainer = rightCol:AddChildWindow("")
+    -- self.TagsAndFlags = TagsAndFlags:Init(self.LeftContainer)
     self.TreeView = self.LeftContainer:AddTree("Hierarchy")
     self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
 
@@ -89,6 +99,7 @@ function Scribe:Initialize()
     -- RPrint("Readying up...")
     ScribeReady:OnNext(true)
 end
+
 function Scribe:CreateMenus()
     -- Create main menu
     local windowMainMenu = self.Window:AddMainMenu()
@@ -102,8 +113,22 @@ function Scribe:CreateMenus()
     -- Add Debug Reset button to right/end of menubar
     if Ext.Debug.IsDeveloperMode() then
         -- Right align button :deadge:
-        Imgui.CreateRightAlign(windowMainMenu, 75, function(c)
+        Imgui.CreateRightAlign(windowMainMenu, 200, function(c)
+            local interfaceToggle = c:AddSliderInt("Client", 0, 0, 1)
+            interfaceToggle.AlwaysClamp = true
+            interfaceToggle.ItemWidth = 50
+            interfaceToggle.OnChange = function()
+                if interfaceToggle.Value[1] == 1 then
+                    interfaceToggle.Label = "Server"
+                    self:ChangeInterface(NetworkPropertyInterface)
+                else
+                    interfaceToggle.Label = "Client"
+                    self:ChangeInterface(LocalPropertyInterface)
+                end
+            end
+            interfaceToggle.Visible = false -- Hidden for now, currently broken when switching to client side -- Un-comment resetButton when interfaceToggle works
             local resetButton = c:AddButton(Ext.Loca.GetTranslatedString("hc491ab897f074d7b9d7b147ce12b92fa32g5", "Reset"))
+            -- resetButton.SameLine = true -- Un-comment it when interfaceToggle works
             resetButton:Tooltip():AddText("\t\t"..Ext.Loca.GetTranslatedString("hec0ec5eaf174476886e2b4487f7e4a50e5b5", "Performs an Ext.Debug.Reset() (like resetting in the console)"))
             resetButton.OnClick = function() Ext.Debug.Reset() end
         end)
@@ -147,11 +172,17 @@ Themes and an Event Logger can be found in the menu bar.
     end)
 end)
 
-
 ---@param intf LocalPropertyInterface|NetworkPropertyInterface
 function Scribe:ChangeInterface(intf)
     -- Do other stuff for networking possibly?
     self.PropertyInterface = intf
+    -- FIXME Trigger refresh?
+    if self.PropertiesView then
+        self.PropertiesView:Clear()
+        self.PropertiesView.PropertyInterface = intf
+        -- self.PropertiesView = PropertyListView:New(self.PropertyInterface, self.RightContainer)
+    end
+    self:UpdateInspectTarget(self.Target)
 end
 
 function Scribe:GetOrCreateInspector(entity, intf, o)
@@ -201,9 +232,9 @@ Scribe.Search = Inspector.Search
 
 ---@param target EntityHandle|string?
 function Scribe:UpdateInspectTarget(target)
-    if self.EntityCardContainer ~= nil then
-        Imgui.ClearChildren(self.EntityCardContainer)
-    end
+    -- if self.EntityCardContainer ~= nil then
+    --     Imgui.ClearChildren(self.EntityCardContainer)
+    -- end
     if self.TreeView ~= nil then
         self.LeftContainer:RemoveChild(self.TreeView)
         self.TreeView = nil
@@ -222,11 +253,16 @@ function Scribe:UpdateInspectTarget(target)
     if targetEntity ~= nil then
         self.Target = targetEntity
         self.TargetId = target
-        Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity)
+
+        -- Helpers.GenerateEntityCard(self.EntityCardContainer, targetEntity, (self.PropertyInterface == NetworkPropertyInterface))
+        self.EntityCard:Update(targetEntity)
+        -- self.TagsAndFlags:Update(targetEntity)
+
         self.TreeView = self.LeftContainer:AddTree(GetEntityName(targetEntity) or tostring(targetEntity))
         self.TreeView.UserData = { Path = ObjectPath:New(target) }
-        self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
         self.TreeView.IDContext = Ext.Math.Random()
+        self.TreeView.OnExpand = function (e) self:ExpandNode(e) end
+        self.TreeView:OnExpand()
         entityName = (GetEntityName(targetEntity) or tostring(targetEntity))
         self.PropertiesView:Clear()
     end

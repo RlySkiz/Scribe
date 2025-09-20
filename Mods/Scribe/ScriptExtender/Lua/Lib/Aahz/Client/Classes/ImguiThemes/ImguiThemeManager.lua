@@ -366,5 +366,17 @@ function ThemeManager:ToggleHighlight(el, highlightStrength, colorKey)
     el:SetColor(colorKey, newColor)
 end
 
+---Gets a themed color from the current theme
+---@param themeKey ThemeKey
+---@return vec4
+function ThemeManager:GetThemedColor(themeKey)
+    if self.CurrentTheme then
+        return self.CurrentTheme:GetThemedColor(themeKey)
+    else
+        SWarn("Attempted to get themed color without a current theme set.")
+        return Imgui.Colors.White
+    end
+end
+
 ---@type ThemeManager
 ImguiThemeManager = ThemeManager:New()

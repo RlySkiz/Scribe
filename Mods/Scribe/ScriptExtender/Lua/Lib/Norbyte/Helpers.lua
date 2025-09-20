@@ -29,7 +29,8 @@ end
 
 function IsPlausiblyScalar(v)
     local ty = Ext.Types.GetValueType(v)
-    return IsScalarType(ty) or (ty == "table" and IsVector(v))
+    local ti = Ext.Types.GetTypeInfo(Ext.Types.GetObjectType(v))
+    return IsScalarType(ty) or ti and IsTypeScalar(ti) or (ty == "table" and IsVector(v))
 end
 
 

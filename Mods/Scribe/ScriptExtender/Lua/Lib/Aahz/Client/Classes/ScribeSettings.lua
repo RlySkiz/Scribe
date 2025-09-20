@@ -70,8 +70,39 @@ function Scribe.GenerateSettingsWindow()
     keybindWatchWindow = KeybindingManager:CreateAndDisplayKeybind(keybindingsGroup,
         "OpenCloseWatchWindow", "Y", { "Alt"}, openCloseWatchWindow)
 
+    local generalSettingsGroup = Scribe.SettingsWindow:AddGroup("GeneralSettings")
+    generalSettingsGroup:AddText(Ext.Loca.GetTranslatedString("h415a6f6f4a3943478768502bf2e5e9a78d7b", "General Settings"))
+    local tagFlagCheck = generalSettingsGroup:AddCheckbox(Ext.Loca.GetTranslatedString("hf3f0081755c94d6aab8f745bbebe900182bb", "Separate Tag and Flag Components"))
+    if LocalSettings:Get(Static.Settings.SeparateTagsAndFlags) then -- If it already exists and is set to true set default to be checked
+        tagFlagCheck.Checked = true
+    end
+    tagFlagCheck.OnChange = function()
+        if tagFlagCheck.Checked then
+            LocalSettings:AddOrChange(Static.Settings.SeparateTagsAndFlags, true)
+            -- Scribe.UpdateAllInstances()
+        else
+            LocalSettings:AddOrChange(Static.Settings.SeparateTagsAndFlags, false)
+            -- Scribe.UpdateAllInstances()
+        end
+    end
+
     Scribe.SettingsWindow:AddSeparatorText("ImguiThemes")
     ImguiThemeManager:CreateUpdateableDisplay(Scribe.SettingsWindow)
 
     return Scribe.SettingsWindow
 end
+
+--- [Not functional][DoNotUse]
+-- Function to update all instances at once for general settings to apply
+-- function Scribe.UpdateAllInstances()
+--     if Scribe and #Scribe.Inspectors > 0 then
+--         for _,instance in pairs(Scribe.Inspectors) do
+--             instance:UpdateInspectTarget(instance.Target)
+--         end
+--     end
+--     if Inspector and #Inspector.Inspectors > 0 then
+--         for _,instance in pairs(Inspector.Inspectors) do
+--             instance:UpdateInspectTarget(instance.Target)
+--         end
+--     end
+-- end

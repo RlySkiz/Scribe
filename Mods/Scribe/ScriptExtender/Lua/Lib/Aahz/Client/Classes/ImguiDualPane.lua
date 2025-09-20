@@ -169,7 +169,7 @@ function ImguiDualPane:RemoveOption(option)
 end
 
 --- Gets array of the currently selected options
----@return table
+---@return string[]
 function ImguiDualPane:GetSelectedOptions()
     local selected = {}
     for k, v in pairs(self._optionsMap) do
@@ -179,8 +179,18 @@ function ImguiDualPane:GetSelectedOptions()
     end
     return selected
 end
+function ImguiDualPane:GetSelectedMap()
+    local selected = {}
+    for k, v in pairs(self._optionsMap) do
+        if v then
+            selected[k] = true
+        end
+    end
+    return selected
+end
+
 ---Gets array of the currently unselected options
----@return table
+---@return string[]
 function ImguiDualPane:GetUnselectedOptions()
     local available = {}
     for k, v in pairs(self._optionsMap) do

@@ -110,12 +110,38 @@ function ImguiLogEntry:Draw(logTable, verbose)
     -- end
 end
 ---@class EntityLogEntry : LogEntry
----@field Entity EntityHandle
+---@field Entity EntityHandle?
+---@field EntityUuid Guid?
+---@field OriginatingContext LuaContext
+---@field HandleInteger integer
+---@field ShowName string
+---@field ShowColor vec4
 ---@field Components string[]
+---@field Cells ExtuiTableCell[] #cells in the row
+---@field _Dead boolean # whether entity is known to be dead
 EntityLogEntry = _Class:Create("EntityLogEntry", "LogEntry", {
     Entity = nil,
     Components = {},
+    Cells = {},
+    _Dead = false,
 })
+function EntityLogEntry:CheckIfEntityIsDead()
+    if not self._Dead then
+        if not self.Entity:IsAlive() then
+            -- Is dead, set color to deadge
+            self.ShowColor = ImguiThemeManager.CurrentTheme:GetThemedColor('Grey')
+            for _, c in ipairs(self.Cells) do
+                for _, child in ipairs(c.Children) do
+                    child:SetColor("Text", self.ShowColor)
+                end
+                c:SetColor("Text", self.ShowColor)
+                c.OnHoverEnter = nil
+            end
+            -- RPrint("ECS Log: Dead - "..self.ShowName)
+            self._Dead = true
+        end
+    end
+end
 
 ---@param logTable ExtuiTable
 ---@param verbose nil|boolean verbose/compact
@@ -130,33 +156,40 @@ function EntityLogEntry:Draw(logTable, verbose)
     local entryName = tostring(self:GetEntry())
     local row = logTable:AddRow()
     -- 1. TimeStamp
-    row:AddCell():AddText(tostring(self.TimeStamp))
-
+    local c1 = row:AddCell()
+    local timeText = c1:AddText(tostring(self.TimeStamp))
+    if self._Dead then timeText:SetColor("Text", self.ShowColor) end
     -- 2. Entity/Change column
-    local changeCell = row:AddCell()
-    local selectable = changeCell:AddSelectable("")
+    local c2 = row:AddCell()
+    local selectable = c2:AddSelectable("")
     selectable.Label = tostring(self:GetCategory())
+    if self._Dead then selectable:SetColor("Text", self.ShowColor) end
     selectable.SpanAllColumns = true
     selectable.DontClosePopups = true
-    local entityPopup = changeCell:AddPopup("")
-    entityPopup:AddSeparatorText(entryName)
-    local inspectButton = entityPopup:AddButton("Inspect")
-    inspectButton.OnClick = function(_)
-        Scribe:GetOrCreateInspector(self.Entity, LocalPropertyInterface)
-    end
+    local entityPopup = c2:AddPopup("")
+    self:SetupPopup(entityPopup)
     selectable.OnClick = function(_)
         selectable.Selected = false
+        entityPopup.UserData.PrepareColor()
         entityPopup:Open()
     end
 
     -- 3. Entry Text
-    local entryCell = row:AddCell()
-    local entryText = entryCell:AddText(entryName)
-    if entryName:sub(1, 8) == "Entity (" then
-        entryText:SetColor("Text", Imgui.Colors.Tan)
-    else
-        entryText:SetColor("Text", Imgui.Colors.Azure)
-    end
+    local c3 = row:AddCell()
+    local entryText = c3:AddText(self.ShowName)
+    entryText:SetColor("Text", self.ShowColor or Imgui.Colors.White)
+    -- if entryName:sub(1, 8) == "Entity (" then
+    --     entryText:SetColor("Text", Imgui.Colors.Tan)
+    -- else
+    --     entryText:SetColor("Text", Imgui.Colors.Azure)
+    -- end
+    self.Cells = {
+        c1, c2, c3
+    }
+    local function checkDeath() if self.Entity then self:CheckIfEntityIsDead() end end
+    c1.OnHoverEnter = checkDeath
+    c2.OnHoverEnter = checkDeath
+    c3.OnHoverEnter = checkDeath
 
     local function addBulletedSubEntries(el)
         if not table.isEmpty(self._SubEntries) then
@@ -172,10 +205,51 @@ function EntityLogEntry:Draw(logTable, verbose)
     end
     -- Move to a tooltip, or a tree? Hmm
     if verbose then -- default to compact, ie- only show subentries in tooltip?
-        addBulletedSubEntries(entryCell)
+        addBulletedSubEntries(c3)
     end
     Imgui.CreateSimpleTooltip(entryText:Tooltip(), function(tt)
         tt:AddSeparatorText(entryName)
         addBulletedSubEntries(tt)
     end)
+end
+
+--- Creates the entry's popup
+---@param popup ExtuiPopup
+function EntityLogEntry:SetupPopup(popup)
+    local entityName = tostring(self:GetEntry())
+    local header = popup:AddSeparatorText(self.ShowName or "")
+    local inspectButton = popup:AddButton("Inspect")
+    local showText = popup:AddText(entityName)
+    showText.SameLine = true
+
+    inspectButton.OnClick = function(_)
+        Scribe:GetOrCreateInspector(self.Entity, LocalPropertyInterface)
+    end
+    local componentTable = popup:AddTable(entityName.."LogPopup", 1)
+    componentTable.Borders = true
+    local row = componentTable:AddRow()
+    for _, component in ipairs(self.Components) do
+        local c = row:AddCell()
+        local wb = c:AddButton("Watch")
+        local ib = c:AddButton("Ignore")
+        ib.SameLine = true
+        local ct = c:AddText(tostring(component))
+        ct.SameLine = true
+        wb.OnClick = function()
+            if Scribe.ScribeLogger then
+                Scribe.ScribeLogger.LoggerECS:WatchComponent(component)
+            end
+        end
+        ib.OnClick = function()
+            if Scribe.ScribeLogger then
+                Scribe.ScribeLogger.LoggerECS:IgnoreComponent(component)
+            end
+        end
+    end
+    popup.UserData = {
+        PrepareColor = function()
+            popup:SetColor("Text", ImguiThemeManager.CurrentTheme:GetThemedColor('MainText'))
+            header:SetColor("Text", self.ShowColor or Imgui.Colors.White)
+        end
+    }
 end

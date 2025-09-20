@@ -1,6 +1,49 @@
 
 Helpers = Helpers or {}
 Helpers.Color = Helpers.Color or {}
+Helpers.ConsoleColorCodes = {
+    -- Attributes
+    Reset           = "\x1b[0m",
+    Bright          = "\x1b[1m",
+    Dim             = "\x1b[2m",
+    Italic          = "\x1b[3m",  -- non-standard feature
+    Underscore      = "\x1b[4m",
+    BlinkOn         = "\x1b[5m",
+    Reverse         = "\x1b[7m",
+    Hidden          = "\x1b[8m",
+    BrightOff       = "\x1b[21m",
+    UnderscoreOff   = "\x1b[24m",
+    BlinkOff        = "\x1b[25m",
+
+    Black   = "\x1b[30m",
+    Red     = "\x1b[31m",
+    Green   = "\x1b[32m",
+    Yellow  = "\x1b[33m",
+    Blue    = "\x1b[34m",
+    Magenta = "\x1b[35m",
+    Cyan    = "\x1b[36m",
+    White   = "\x1b[37m",
+    Default = "\x1b[39m",
+
+    LightGray   = "\x1b[90m",
+    LightRed    = "\x1b[91m",
+    LightGreen  = "\x1b[92m",
+    LightYellow = "\x1b[93m",
+    LightBlue   = "\x1b[94m",
+    LightMagenta= "\x1b[95m",
+    LightCyan   = "\x1b[96m",
+    LightWhite  = "\x1b[97m",
+
+    BGBlack     = "\x1b[40m",
+    BGRed       = "\x1b[41m",
+    BGGreen     = "\x1b[42m",
+    BGYellow    = "\x1b[43m",
+    BGBlue      = "\x1b[44m",
+    BGMagenta   = "\x1b[45m",
+    BGCyan      = "\x1b[46m",
+    BGWhite     = "\x1b[47m",
+    BGDefault   = "\x1b[49m"
+}
 
 ---@param hex string
 ---@param alpha number? 0.0-1.0
@@ -54,6 +97,29 @@ end
 ---@return string
 function Helpers.Color.RGBToHex(rgb)
     return string.format('%.2x%.2x%.2x', rgb[1], rgb[2], rgb[3])
+end
+---@param h integer hue
+---@param s integer saturation
+---@param v integer value
+---@return integer r red
+---@return integer g green
+---@return integer b blue
+function Helpers.Color.HSVToRGB(h, s, v)
+    local c = v * s
+    local hp = h / 60
+    local x = c * (1 - math.abs(hp % 2 - 1))
+    local r, g, b = 0, 0, 0
+
+    if     hp >= 0 and hp <= 1 then r, g, b = c, x, 0
+    elseif hp >= 1 and hp <= 2 then r, g, b = x, c, 0
+    elseif hp >= 2 and hp <= 3 then r, g, b = 0, c, x
+    elseif hp >= 3 and hp <= 4 then r, g, b = 0, x, c
+    elseif hp >= 4 and hp <= 5 then r, g, b = x, 0, c
+    elseif hp >= 5 and hp <= 6 then r, g, b = c, 0, x
+    end
+
+    local m = v - c
+    return math.floor((r + m) * 255), math.floor((g + m) * 255), math.floor((b + m) * 255)
 end
 
 --- Create a table for the RGBA values, normalized to 0-1

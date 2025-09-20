@@ -5,7 +5,7 @@ function Imgui.ScaleFactor()
     return Ext.IMGUI.GetViewportSize()[2] / 1440
 end
 function Imgui.ClearChildren(el)
-    if el == nil then return end
+    if el == nil or not pcall(function() return el.Handle end) then return end
     for _, v in pairs(el.Children) do
         if v.UserData ~= nil and v.UserData.SafeKeep ~= nil then
             v.UserData.SafeKeep()
@@ -19,10 +19,12 @@ end
 ---@param parent ExtuiTreeParent
 ---@param estimatedWidth number
 ---@param contentFunc fun(contentCell:ExtuiTableCell):...:any
+---@param sameLine boolean? # true = layoutTable.SameLine = true
 ---@return ... # returns result of contentFunc
-function Imgui.CreateRightAlign(parent, estimatedWidth, contentFunc)
+function Imgui.CreateRightAlign(parent, estimatedWidth, contentFunc, sameLine)
     -- Right align button :deadge:
     local ltbl = parent:AddTable("", 2)
+    if sameLine then ltbl.SameLine = true end
     ltbl:AddColumn("", "WidthStretch")
     ltbl:AddColumn("", "WidthFixed", estimatedWidth)
     local r = ltbl:AddRow()
@@ -36,10 +38,12 @@ end
 ---@param parent ExtuiTreeParent
 ---@param estimatedWidth number
 ---@param contentFunc fun(contentCell:ExtuiTableCell):...:any
+---@param sameLine boolean? # true = layoutTable.SameLine = true
 ---@return ... # returns result of contentFunc
-function Imgui.CreateMiddleAlign(parent, estimatedWidth, contentFunc)
+function Imgui.CreateMiddleAlign(parent, estimatedWidth, contentFunc, sameLine)
     -- Middle align button :deadge:
     local ltbl = parent:AddTable("", 3)
+    if sameLine then ltbl.SameLine = true end
     ltbl:AddColumn("", "WidthStretch")
     ltbl:AddColumn("", "WidthFixed", estimatedWidth)
     ltbl:AddColumn("", "WidthStretch")
@@ -76,7 +80,9 @@ function Imgui.CreateCommonWindow(name, args)
     args.MaxSizePercentage = args.MaxSizePercentage ~= nil and args.MaxSizePercentage or { .5, .85}
 
     local win = Ext.IMGUI.NewWindow(name)
-    win.IDContext = args.IDContext or ""
+    if args.IDContext then
+        win.IDContext = args.IDContext
+    end
     win:SetSize(args.Size, "FirstUseEver")
     win.Open = args.Open
     win.Closeable = args.Closeable

@@ -18,10 +18,12 @@ Scribe.AllWindows = Scribe.AllWindows or {}
 
 RequireFiles("Lib/", {
     "Aahz/_Init",
+    "Skiz/_Init",
 })
+
 -- First time Scribe usage
 FirstTime = RX.ReplaySubject.Create(1)
-local firstTimeAgreed = LocalSettings:Get("FirstTimeAgreed")
+local firstTimeAgreed = LocalSettings:Get(Static.Settings.FirstTimeAgreed)
 if firstTimeAgreed then
     FirstTime:OnNext(true)
 end
@@ -35,6 +37,10 @@ FirstTime:Subscribe(function(v)
     end
 end)
 
-Inspector = Ext.Require("Lib/Norbyte/Inspector/Inspector.lua")
-LocalPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/LocalPropertyInterface.lua")
-NetworkPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/NetworkPropertyInterface.lua")
+if Ext.IsClient() then
+    Inspector = Ext.Require("Lib/Norbyte/Inspector/Inspector.lua")
+    LocalPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/LocalPropertyInterface.lua")
+    NetworkPropertyInterface = Ext.Require("Lib/Norbyte/Inspector/NetworkPropertyInterface.lua")
+else
+    ServerPropertyHandler = require("Lib.Norbyte.Inspector.ServerPropertyHandler")
+end

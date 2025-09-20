@@ -6,7 +6,7 @@ local IsEntity = H.IsEntity
 local PropertyEditorFactory = require("Lib.Norbyte.Inspector.PropertyEditor")
 
 --- @class PropertyListView
---- @field PropertyInterface LocalPropertyInterface
+--- @field PropertyInterface LocalPropertyInterface|NetworkPropertyInterface
 --- @field Parent ExtuiTreeParent
 --- @field Target ObjectPath
 PropertyListView = {
@@ -66,8 +66,8 @@ end
 ---@param propInfo TypeInformationRef|nil
 function PropertyListView:AddPropertyEditor(path, holder, key, value, propInfo)
     if propInfo ~= nil then
-        local setter = function (value, vKey, vPath)
-            self.PropertyInterface:SetProperty(vPath or path, vKey or key, value)
+        local setter = function (val, vKey, vPath)
+            self.PropertyInterface:SetProperty(vPath or path, vKey or key, val)
         end
         PropertyEditorFactory:CreateEditor(holder, path, key, value, propInfo, setter)
     else
@@ -91,6 +91,8 @@ function PropertyListView:AddProperty(path, typeInfo, key, value)
     -- PropertyEditor cell
     local holder = propRow:AddCell()
     local propInfo = GetPropertyMeta(typeInfo, key)
+    -- SPrint("Adding property editor: %s, %s", key, value)
+    -- RPrint(propInfo)
     self:AddPropertyEditor(path, holder, key, value, propInfo)
 
     self.PropertiesPane.SizingFixedFit = true -- change after cells are added, so it updates width
@@ -130,6 +132,14 @@ function PropertyListView:CreateSelectablePopup(holder, propertyPath, propName)
             Scribe.PropertyWatch:AddWatch(propertyPath.Root --[[@as EntityHandle]], propertyPath)
         end
     end
+    local addToCardButton = popup:AddButton("Add to Card")
+    addToCardButton.Visible = false -- TODO: Remove when Watcher logic is implemented
+    addToCardButton.OnClick = function()
+        local inspector = Scribe:GetOrCreateInspector(self.Target)
+        if inspector.EntityCard then
+            inspector.EntityCard:AddWatcher(propertyPath)
+        end
+    end
     selectable.OnClick = function()
         selectable.Selected = false
         popup:Open()
@@ -166,14 +176,18 @@ function PropertyListView:Refresh()
         local pathText = pathCell:AddInputText("", pathStr)
         local saveButton = pathCell:AddButton("Dump")
         Imgui.CreateSimpleTooltip(saveButton:Tooltip(), function(tt)
-            tt:AddText(string.format("Dump to /ScriptExtender/Scribe/_Dumps/[C]%s", placeholderPath))
+            tt:AddText(string.format("Dump to /ScriptExtender/Scribe/_Dumps/[%s]%s", (self.PropertyInterface == NetworkPropertyInterface and "S" or "C"), placeholderPath))
             tt:AddBulletText("Up to 10 files with the same name are allowed."):SetColor("Text", Imgui.Colors.DarkOrange)
         end)
         saveButton.SameLine = true
         saveButton.OnClick = function()
-            local obj = self.Target:Resolve()
-            if obj then
-                Helpers.Dump(obj, placeholderPath)
+            if self.PropertyInterface == NetworkPropertyInterface then
+                Helpers.RequestServerDump(self.Target, placeholderPath)
+            else
+                local obj = self.Target:Resolve()
+                if obj then
+                    Helpers.Dump(obj, placeholderPath)
+                end
             end
         end
         pathText.ReadOnly = true
@@ -183,14 +197,12 @@ function PropertyListView:Refresh()
     end
 
     -- Add Properties
-    local hasProperties = false
     self.PropertyInterface:FetchChildren(self.Target, function (nodes, properties, typeInfo)
         for _,info in ipairs(properties) do
             self:AddProperty(self.Target, typeInfo, info.Key, info.Value)
-            hasProperties = true
+            self.PropertiesContainer.Visible = true -- Needs to be set over and over to avoid netchannel delay making it invisible
         end
     end)
-    self.PropertiesContainer.Visible = hasProperties
 end
 
 return PropertyListView

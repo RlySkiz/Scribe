@@ -35,7 +35,8 @@ function ObjectPath:Resolve(stopAtRecursion)
         seen[obj] = true
 
         -- Jank workaround for accessing elements in a set
-        if type(obj) == "userdata" and Ext.Types.GetValueType(obj) == "Set" then
+        local vt = Ext.Types.GetValueType(obj)
+        if type(obj) == "userdata" and (vt == "Set" or string.sub(vt or "", 1, 3) == "Set") then
             obj = Ext.Types.GetHashSetValueAt(obj, name)
         else
             obj = obj[name]
@@ -51,6 +52,21 @@ end
 function ObjectPath:IsRecursive()
     local _, isRecursive = self:Resolve(true)
     return isRecursive
+end
+
+function ObjectPath:HasProperties()
+    local resolved = self:Resolve()
+    if resolved then
+        -- local count = table.count(resolved)
+        -- SDebug("ObjectPath %s: %s properties", self.Path[#self.Path], count)
+        return table.count(resolved) > 0
+    else
+        return false
+    end
+end
+
+function ObjectPath:GetLast()
+    return self.Path[#self.Path]
 end
 
 function ObjectPath:__tostring()

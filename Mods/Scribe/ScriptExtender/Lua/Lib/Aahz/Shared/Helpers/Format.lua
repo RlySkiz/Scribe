@@ -6,6 +6,7 @@ local GetEntityName = H.GetEntityName
 
 ---@return Guid
 function Helpers.Format.CreateUUID()
+---@diagnostic disable-next-line: redundant-return-value
     return string.gsub("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx", "[xy]", function (c)
         return string.format("%x", c == "x" and Ext.Math.Random(0, 0xf) or Ext.Math.Random(8, 0xb))
     end)
@@ -33,7 +34,7 @@ end
 
 --- Converts a quaternion [x,y,z,w] to Euler angles [x,y,z] (roll, pitch, yaw).
 ---@param quat vec4
----@return table
+---@return vec3
 function Helpers.Math.QuatToEuler(quat)
     local x, y, z, w = quat[1], quat[2], quat[3], quat[4]
 
@@ -83,6 +84,8 @@ function Helpers.GetEntityName(e)
         return "Terrain"
     elseif e.GameObjectVisual ~= nil then
         return Ext.Template.GetTemplate(e.GameObjectVisual.RootTemplateId).Name
+    elseif e.TLPreviewDummy ~= nil then
+        return ("TLPreviewDummy:%s"):format(e.TLPreviewDummy.Name == "DUM_" and e.Uuid and e.TLPreviewDummy.Name..e.Uuid.EntityUuid or e.TLPreviewDummy.Name)
     elseif e.Visual ~= nil and e.Visual.Visual ~= nil and e.Visual.Visual.VisualResource ~= nil then
         local name = ""
         if e:HasRawComponent("ecl::Scenery") then
@@ -113,19 +116,23 @@ function Helpers.GetEntityName(e)
     elseif e.Uuid ~= nil then
         return e.Uuid.EntityUuid
     else
-        return nil
+        return NameGen:GenerateOrGet(e)
     end
 end
 
 --- Generates an IMGUI entity card for the given entity
 ---@param container ExtuiTreeParent
 ---@param entity EntityHandle
-function Helpers.GenerateEntityCard(container, entity)
+function Helpers.GenerateEntityCard(container, entity, serverEntity)
     container:AddSeparatorText("Entity Info:")
     local dumpButton = container:AddButton("Dump")
     container:AddText(string.format("Name: %s", GetEntityName(entity) or "Unknown")).SameLine = true
     dumpButton.OnClick = function()
-        Helpers.Dump(entity)
+        if serverEntity then
+            Helpers.RequestServerDump(ObjectPath:New(entity))
+        else
+            Helpers.Dump(entity)
+        end
     end
 
     container:AddText("Uuid:")
@@ -230,6 +237,7 @@ function Helpers.Format.SanitizeFileName(str)
     str = string.gsub(str, "[%c<>:\"/\\|%?%*]", "") -- Removes:     < > : " / \ | ? *
 
     -- Trim whitespace from the beginning and end of the string
+---@diagnostic disable-next-line: param-type-mismatch
     str = str:trim()
 
     return str
@@ -280,4 +288,49 @@ function Helpers.Dump(obj, requestedName)
     end
     RPrint(string.format("Dumping: %s_0.json", path))
     return Ext.IO.SaveFile(path.."_0.json", data or "No dumpable data available.")
+end
+
+local RequestServerDump = Ext.Net.CreateChannel(ModuleUUID, "Scribe.RequestServerDump")
+if Ext.IsClient() then
+    ---@param path ObjectPath
+    ---@param requestedName string?
+    function Helpers.RequestServerDump(path, requestedName)
+        if path then
+            local root = path.Root
+            if type(root) ~= "string" then
+                local uuid = Ext.Entity.HandleToUuid(root)
+                if not uuid then
+                    return SWarn("Cannot request a server dump of entities that don't have UUID's (%s)", tostring(root))
+                else
+                    root = uuid
+                end
+            end
+            RequestServerDump:SendToServer({
+                Root = root,
+                Path = path.Path,
+                RequestedName = requestedName,
+            })
+        else
+            SWarn("Requested server dump without providing object path.")
+        end
+    end
+else
+    -- Server only
+    RequestServerDump:SetHandler(function(args)
+        local entity
+        if type(args.Root) == "string" then
+            entity = Ext.Entity.Get(args.Root)
+            if entity then
+                local path = ObjectPath:New(entity, args.Path)
+                local obj = path:Resolve()
+                if obj ~= nil then
+                    Helpers.Dump(obj, args.RequestedName)
+                end
+            else
+                SWarn("Couldn't resolve entity when requesting server dump: %s", tostring(args.Root))
+            end
+        else
+            SWarn("Invalid root type: %s (%s)", tostring(args.Root), type(args.Root))
+        end
+    end)
 end

@@ -10,7 +10,11 @@ function NetworkPropertyInterface:FetchChildren(path, handler)
     if type(path.Root) == "string" then
         root = path.Root
     else
-        root = Ext.Utils.HandleToInteger(path.Root)
+        if Ext.Types.GetObjectType(path.Root) == "Entity" and path.Root.Uuid then
+            root = path.Root.Uuid.EntityUuid
+        else
+            root = Ext.Utils.HandleToInteger(path.Root)
+        end
     end
 
     local request = {
@@ -18,6 +22,8 @@ function NetworkPropertyInterface:FetchChildren(path, handler)
         Path = path.Path
     }
     local networkHandler = function (reply)
+        -- SPrint("ServerResponse:")
+        -- RPrint(reply)
         local typeInfo
         if reply.TypeName then
             typeInfo = Ext.Types.GetTypeInfo(reply.TypeName)
@@ -35,7 +41,11 @@ function NetworkPropertyInterface:SetProperty(path, key, value)
     if type(path.Root) == "string" then
         root = path.Root
     else
-        root = Ext.Utils.HandleToInteger(path.Root)
+        if Ext.Types.GetObjectType(path.Root) == "Entity" and path.Root.Uuid then
+            root = path.Root.Uuid.EntityUuid
+        else
+            root = Ext.Utils.HandleToInteger(path.Root)
+        end
     end
 
     local request = {

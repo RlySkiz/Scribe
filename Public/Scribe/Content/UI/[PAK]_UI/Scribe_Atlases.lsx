@@ -12,7 +12,7 @@
 					<attribute id="SourceFile" type="LSString" value="Public/Scribe/Assets/Textures/Icons/Hypers.dds" />
 					<attribute id="Streaming" type="bool" value="True" />
 					<attribute id="Template" type="FixedString" value="Icons_Skills" />
-					<attribute id="Type" type="int32" value="1" />
+					<attribute id="Type" type="int32" value="0" />
 					<attribute id="_OriginalFileVersion_" type="int64" value="144115188075855873" />
 				</node>
 				<node id="Resource">
@@ -23,7 +23,7 @@
 					<attribute id="SourceFile" type="LSString" value="Public/Scribe/Assets/Textures/Icons/Scribed.dds" />
 					<attribute id="Streaming" type="bool" value="True" />
 					<attribute id="Template" type="FixedString" value="Icons_Skills" />
-					<attribute id="Type" type="int32" value="1" />
+					<attribute id="Type" type="int32" value="0" />
 					<attribute id="_OriginalFileVersion_" type="int64" value="144115188075855873" />
 				</node>
 			</children>

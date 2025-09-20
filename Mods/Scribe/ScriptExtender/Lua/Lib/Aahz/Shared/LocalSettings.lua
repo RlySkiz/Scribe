@@ -102,6 +102,8 @@ Cache = _Class:Create("Cache", "LocalSettings", {
 CacheData = {
     RuntimeComponentNames = "RuntimeComponentNames",
     UnmappedComponentNames = "UnmappedComponentNames",
+    LastIgnoredComponents = "LastIgnoredComponents",
+    LastWatchedComponents = "LastWatchedComponents",
 }
 
 local function GenerateCache()

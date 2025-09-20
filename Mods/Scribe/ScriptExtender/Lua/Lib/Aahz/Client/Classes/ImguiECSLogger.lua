@@ -1,28 +1,8 @@
----@class ImguiECSLogger: ImguiLogger
---- @field ChangeCounts number[]
---- @field TrackChangeCounts boolean
---- @field PrintChangesToConsole boolean
---- @field EntityCreations boolean|nil Include entity creation events
---- @field EntityDeletions boolean|nil Include entity deletion events
---- @field OneFrameComponents boolean|nil Include "one-frame" components (usually one-shot event components)
---- @field ReplicatedComponents boolean|nil Include components that can be replicated (not the same as replication events!)
---- @field ComponentReplications boolean|nil Include server-side replication events
---- @field ComponentCreations boolean|nil Include component creation events
---- @field ComponentDeletions boolean|nil Include component deletions
---- @field ExcludeComponents table<string,boolean> Exclude these components
---- @field IncludedOnly boolean
---- @field IncludeComponents table<string,boolean> Only include these components
---- @field ExcludeSpamComponents boolean
---- @field ExcludeSpamEntities boolean
---- @field ExcludeCommonComponents boolean
---- @field Boosts boolean|nil Include boost entities
---- @field ExcludeCrowds boolean|nil Exclude crowd entities
---- @field ExcludeStatuses boolean|nil Exclude status entities
---- @field ExcludeBoosts boolean|nil Exclude boost entities
---- @field ExcludeInterrupts boolean|nil Exclude interrupt entities
---- @field ExcludePassives boolean|nil Exclude passive entities
---- @field ExcludeInventories boolean|nil Exclude inventory entities
---- @field WatchedEntity EntityHandle|nil specific entity to watch
+---@module 'Shared.Classes.NetworkEvents'
+local NetworkEvents = Ext.Require("Shared/Classes/NetworkEvents.lua")
+
+--- @class ImguiECSLogger: ImguiLogger
+--- @field Logger ECSLogger
 --- @field Ready boolean
 --- @field ContainerTab ExtuiTabItem|nil
 --- @field Window ExtuiChildWindow
@@ -36,63 +16,31 @@
 --- @field PrintToConsoleCheckbox ExtuiCheckbox
 --- @field WatchComponentWindow ExtuiWindow
 --- @field WatchDualPane ImguiDualPane
---- @field WatchedComponents table<string,boolean>
 --- @field ApplyWatchFilters boolean
 --- @field AutoInspect boolean
---- @field AutoDump boolean
 --- @field IgnoreComponentWindow ExtuiWindow
 --- @field IgnoreDualPane ImguiDualPane
---- @field IgnoredComponents table<string, boolean>
+--- @field WatchedSelectable ExtuiSelectable
+--- @field IgnoredSelectable ExtuiSelectable
 --- @field ThrobberWin ExtuiWindow Throbber window, toggle on/off when tracing
+--- @field RunningHue integer
+--- @field EntityColorMap table<string, vec4>
+--- @field UsingServerLogger boolean
 ImguiECSLogger = _Class:Create("ImguiECSLogger", "ImguiLogger", {
     Window = nil,
-    FrameNo = 1,
-    TrackChangeCounts = true,
-    PrintChangesToConsole = false,
-    ChangeCounts = {},
     LogEntries = {},
 
-    -- Event types
-    -- EntityCreations = true,
-    -- EntityDeletions = true,
-    -- OneFrameComponents = true,
-    -- ReplicatedComponents = true,
-    -- ComponentReplications = true,
-    -- ComponentCreations = true,
-    -- ComponentDeletions = true,
-
-    -- Exclusions
-    ExcludeCrowds = true,
-    ExcludeStatuses = true,
-    ExcludeBoosts = true,
-    ExcludeInterrupts = true,
-    ExcludePassives = true,
-    ExcludeInventories = true,
-    
-    -- Special exclusions
-    -- TODO making configurable ignore list
-    ExcludeSpamComponents = true,
-    ExcludeSpamEntities = true,
-    ExcludeComponents = {},
-
-    -- Only include these components
-    -- TODO making configurable watch list
-    IncludedOnly = false,
-    IncludeComponents = {},
-
     ApplyWatchFilters = false,
-    AutoInspect = false,
-    AutoDump = false,
+    RunningHue = 0,
+    EntityColorMap = {},
+    UsingServerLogger = false,
 })
 
-local private = {
-	SpamComponents = {},
-	StatusComponents = {},
-    KnownComponents = {},
-    UnknownComponents = {},
-}
 function ImguiECSLogger:Init()
     self.Ready = false
+    self.Logger = ECSLogger
+    self.AutoInspect = self.AutoInspect or false
+    self.AutoDump = ECSLogger.AutoDump
 end
 
 ---@param tab ExtuiTabItem
@@ -111,25 +59,107 @@ function ImguiECSLogger:CreateTab(tab, mainMenu)
 
     self:InitializeLayout()
     self:CreateScribeThrobber()
+    self:WrapLoggerTick()
     tab.OnActivate = function()
         if mainMenu and mainMenu.UserData then
             mainMenu.UserData.ActivateSubMenu(self.SettingsMenu)
         end
     end
 end
+---@param useServer boolean?
+function ImguiECSLogger:ToggleLoggerContext(useServer)
+    self.UsingServerLogger = useServer ~= nil
+    -- Stop loggers if running and clear
+    if useServer then
+        -- Use Server
+        self.Logger:StopTracing() -- stop local if it's running
+
+        -- Make sure server is on the same page
+        local data = {
+            IgnoredComponents = self.Logger.IgnoredComponents,
+            WatchedComponents = self.Logger.WatchedComponents,
+
+            TrackChangeCounts = self.Logger.TrackChangeCounts,
+            PrintChangesToConsole = self.Logger.PrintChangesToConsole,
+            EntityCreations = self.Logger.EntityCreations,
+            EntityDeletions = self.Logger.EntityDeletions,
+            OneFrameComponents = self.Logger.OneFrameComponents,
+            ReplicatedComponents = self.Logger.ReplicatedComponents,
+            ComponentReplications = self.Logger.ComponentReplications,
+            ComponentCreations = self.Logger.ComponentCreations,
+            ComponentDeletions = self.Logger.ComponentDeletions,
+            ExcludeSpamEntities = self.Logger.ExcludeSpamEntities,
+            SpamEntities = self.Logger.SpamEntities,
+            ExcludeCrowds = self.Logger.ExcludeCrowds,
+            ExcludeStatuses = self.Logger.ExcludeStatuses,
+            ExcludeBoosts = self.Logger.ExcludeBoosts,
+            ExcludeInterrupts = self.Logger.ExcludeInterrupts,
+            ExcludePassives = self.Logger.ExcludePassives,
+            ExcludeInventories = self.Logger.ExcludeInventories,
+            AutoDump = self.Logger.AutoDump,
+        }
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.Sync,
+            Data = data
+        })
+        -- Clear server
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.Clear,
+        })
+    else
+        -- Use Client
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.Stop, -- stop server logger if it's running
+        })
+    end
+
+    -- Clear Log when context switches
+    self.ClearButton:OnClick()
+end
+-- Handle ECSLogger Settings according to server/client context
+---@param key string
+---@param value any
+function ImguiECSLogger:HandleContextSetting(key, value)
+    -- Only update server settings if using it
+    if self.UsingServerLogger then
+        NetworkEvents.ECSLogger:SendToServer({
+            Operation = ECSLoggerNetOps.UpdateSetting,
+            Key = key,
+            Data = value,
+        })
+    end
+    -- Always update local logger settings to match
+    self.Logger[key] = value
+end
 
 function ImguiECSLogger:InitializeLayout()
     if self.Ready then return end -- only initialize once
     local startstop = self.Window:AddButton("Start/Stop")
     local clear = self.Window:AddButton("Clear")
-    local frameCounter = self.Window:AddText("Frame: 0")
+    local frameCounter = self.Window:AddText("Frame: 1")
     clear.SameLine = true
     frameCounter.SameLine = true
     frameCounter:SetColor("Text", Imgui.Colors.Tan)
+    self.Logger.OnFrameCount:Subscribe(function(num) self.FrameCounter.Label = "Frame: " .. num end)
 
     local eventCounter = self.Window:AddText("Events: 0")
     eventCounter.SameLine = true
     eventCounter:SetColor("Text", Imgui.Colors.Tan)
+
+    Imgui.CreateRightAlign(self.Window, 150, function(c)
+        local contextToggle = c:AddSliderInt("Client", 0, 0, 1)
+        contextToggle.AlwaysClamp = true
+        contextToggle.ItemWidth = 50
+        contextToggle.OnChange = function()
+            if contextToggle.Value[1] == 1 then
+                contextToggle.Label = "Server"
+                self:ToggleLoggerContext(true)
+            else
+                contextToggle.Label = "Client"
+                self:ToggleLoggerContext()
+            end
+        end
+    end, true)
 
     local printToConsoleChk = self.SettingsMenu:AddCheckbox("Print to Console", self.PrintChangesToConsole)
     printToConsoleChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
@@ -137,11 +167,26 @@ function ImguiECSLogger:InitializeLayout()
     printToConsoleChk:Tooltip():AddText("\t".."Log entity changes to console as well.")
 
     printToConsoleChk.OnChange = function(c)
-        self.PrintChangesToConsole = c.Checked
+        self:HandleContextSetting("PrintChangesToConsole", c.Checked)
+    end
+    local verboseChk = self.SettingsMenu:AddCheckbox("Verbose Log Entries", self.Verbose)
+    verboseChk:SetColor("FrameBg", Imgui.Colors.DarkGray)
+    verboseChk.IDContext = "Scribe_ECSLoggerVerboseChk"
+    verboseChk:Tooltip():AddText("\t".."Entries will expand and display components at the top-level of log, in each row.")
+
+    verboseChk.OnChange = function(c)
+        self.Verbose = c.Checked
+        self:RebuildLog()
     end
 
-    self:SetupToggles()
     self:CreateComponentWatchWindow()
+    self:CreateIgnoredComponentsWindow()
+    
+    -- Watched/Ignored selectables
+    self:CreateWatchedIgnoredSelectables()
+
+
+    self:SetupToggles()
     -- Component Watch Menu setup
     local watchWindowSettingsMenu = self.SettingsMenu:AddMenu("Watched Components")
     local watchCompButton = watchWindowSettingsMenu:AddItem("Open Watch Settings")
@@ -167,24 +212,17 @@ function ImguiECSLogger:InitializeLayout()
         self.AutoInspect = c.Checked
     end
     autoDumpChk.OnChange = function(c)
-        self.AutoDump = c.Checked
+        self:HandleContextSetting("AutoDump", c.Checked)
     end
 
-    self:CreateIgnoredComponentsWindow()
     -- TODO Component Ignore menu
     local ignoreSettingsMenu = self.SettingsMenu:AddMenu("Ignored Components")
     local ignoreCompButton = ignoreSettingsMenu:AddItem("Open Ignore Settings")
     ignoreCompButton.OnClick = function() self.IgnoreComponentWindow.Open = not self.IgnoreComponentWindow.Open end
-    local ignoreSpam = ignoreSettingsMenu:AddItem("Ignore known spam components")
-    local ignoreStatus = ignoreSettingsMenu:AddItem("Ignore status components")
+    local ignoreSpam = ignoreSettingsMenu:AddItem("Ignore all common spam components")
     ignoreSpam.OnClick = function()
-        for spam, _ in pairs(private.SpamComponents) do
-            self.IgnoreDualPane:AddOption(spam, { TooltipText = "Known spam component" }, true)
-        end
-    end
-    ignoreStatus.OnClick = function()
-        for sc, _ in pairs(private.StatusComponents) do
-            self.IgnoreDualPane:AddOption(sc, { TooltipText = "Spammy status component changes" }, true)
+        for _,g in ipairs(IgnoreGroups) do
+            g:SelectInDualPane(self.IgnoreDualPane)
         end
     end
 
@@ -231,20 +269,40 @@ function ImguiECSLogger:InitializeLayout()
     self.EventCounter = eventCounter
     self.Ready = true
 
-    -- mockup
     startstop.OnClick = function(b)
-        if not self.TickHandler then
-            -- not tracing, intent is to start logging again, so rebuild/clear log
-            self:RebuildLog()
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:RequestToServer({
+                Operation = ECSLoggerNetOps.ToggleStartStop,
+            }, function(reply)
+                if reply then
+                    -- Server logger is running
+                    self.ThrobberWin.Visible = true
+                else
+                    self.ThrobberWin.Visible = false
+                end
+            end)
+        else
+            if not self.Logger.Running then
+                -- not tracing, intent is to start logging again, so rebuild/clear log
+                self:RebuildLog()
+            end
+            self.Logger:StartStopTracing()
         end
-        self:StartStopTracing()
     end
     clear.OnClick = function(b)
-        self.FrameNo = 0
-        self.FrameCounter.Label = "Frame: 0"
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:SendToServer({
+                Operation = ECSLoggerNetOps.Clear,
+            })
+        else
+            self.Logger:Clear()
+        end
+        self.FrameCounter.Label = "Frame: 1"
+        self.EventCounter.Label = "Events: 0"
         self.LogEntries = {}
         self:RebuildLog()
     end
+    -- self.Logger.OnFrameCount
 end
 
 function ImguiECSLogger:SetupToggles()
@@ -254,7 +312,7 @@ function ImguiECSLogger:SetupToggles()
         chk.IDContext = "Scribe_ECSLogger"..key.."Chk"
         chk:Tooltip():AddText("\t"..tooltipText)
         chk.OnChange = function(c)
-            self[name] = c.Checked
+            self:HandleContextSetting(name, c.Checked)
         end
     end
 
@@ -313,7 +371,76 @@ function ImguiECSLogger:CreateScribeThrobber()
         end
     end)
     self.ThrobberWin = win
+    self.Logger.OnStartStop:Subscribe(function(running)
+        if running then
+            self.ThrobberWin.Visible = true
+        else
+            self.ThrobberWin.Visible = false
+        end
+    end)
 end
+
+function ImguiECSLogger:CreateWatchedIgnoredSelectables()
+    local layoutTable = self.Window:AddTable("Scribe_ECSLoggerWatchedIgnored", 2)
+    layoutTable.Borders = true
+    layoutTable.SizingStretchSame = true
+    layoutTable:SetStyle("Alpha", 1)
+    local r = layoutTable:AddRow()
+    local c1 = r:AddCell()
+    local c2 = r:AddCell()
+    local annoyingSubLayoutTableWatched = c1:AddTable("Scribe_AnnoyingSubLayoutWatched", 1)
+    annoyingSubLayoutTableWatched.RowBg = true
+    local annoyingSubLayoutTableIgnored = c2:AddTable("Scribe_AnnoyingSubLayoutIgnored", 1)
+    annoyingSubLayoutTableIgnored.RowBg = true
+    local watched = annoyingSubLayoutTableWatched:AddRow():AddCell():AddSelectable("Seen Watched: 0")
+    local ignored = annoyingSubLayoutTableIgnored:AddRow():AddCell():AddSelectable("Seen Ignored: 0")
+    layoutTable.AllowItemOverlap = true
+    annoyingSubLayoutTableIgnored.AllowItemOverlap = true
+    self.WatchedSelectable = watched
+    self.IgnoredSelectable = ignored
+
+    -- Watched setup
+    watched.UserData = {
+        WatchedCount = 0,
+    }
+    -- self.WatchDualPane.OnSettle:Subscribe(function()
+    --     self.WatchedSelectable.Label = string.format("Seen Watched: %s", #self.WatchDualPane:GetSelectedOptions())
+    -- end)
+
+    self.Logger.OnWatched:Subscribe(function(change)
+        if change then
+            -- Fade color and increment watch count
+            Imgui.FadeColor(annoyingSubLayoutTableWatched, "TableRowBg", Imgui.Colors.OrangeRed, ImguiThemeManager:GetThemedColor("Accent1"), 2)
+            self.WatchedSelectable.UserData.WatchedCount = self.WatchedSelectable.UserData.WatchedCount + 1
+            self.WatchedSelectable.Label = "Seen Watched: "..self.WatchedSelectable.UserData.WatchedCount
+        end
+    end)
+
+    -- Ignored setup
+    ignored.UserData = {
+        IgnoredCount = 0,
+    }
+    
+    self.Logger.OnIgnored:Subscribe(function(change)
+        if change then
+            -- Fade color and increment ignore count
+            Imgui.FadeColor(annoyingSubLayoutTableIgnored, "TableRowBg", Imgui.Colors.MediumSeaGreen, ImguiThemeManager:GetThemedColor("Accent1"), 2)
+            self.IgnoredSelectable.UserData.IgnoredCount = self.IgnoredSelectable.UserData.IgnoredCount + 1
+            self.IgnoredSelectable.Label = "Seen Ignored: "..self.IgnoredSelectable.UserData.IgnoredCount
+        end
+    end)
+    -- brittle reset on logger reset (frame == 1)
+    self.Logger.OnFrameCount:Where(function(num) return num == 1 end):Subscribe(function(num)
+        self.IgnoredSelectable.Label = "Ignored: 0"
+        self.IgnoredSelectable.UserData.IgnoredCount = 0
+        self.WatchedSelectable.Label = "Seen Watched: 0"
+        self.WatchedSelectable.UserData.WatchedCount = 0
+    end)
+
+    watched.OnClick = function() watched.Selected = false self.WatchComponentWindow.Open = not self.WatchComponentWindow.Open end
+    ignored.OnClick = function() ignored.Selected = false self.IgnoreComponentWindow.Open = not self.IgnoreComponentWindow.Open end
+end
+
 
 function ImguiECSLogger:CreateComponentWatchWindow()
     local win = Imgui.CreateCommonWindow("ECS Logger - Watched Components", {
@@ -326,14 +453,10 @@ function ImguiECSLogger:CreateComponentWatchWindow()
     local dualPane = ImguiDualPane:New{
         TreeParent = win,
     }
-    local cachedKnownComponents = Cache:GetOr({}, CacheData.RuntimeComponentNames)
-    for t, name in table.pairsByKeys(cachedKnownComponents) do
-        private.KnownComponents[t] = name
+    for t,name in table.pairsByKeys(self.Logger.KnownComponents) do
         dualPane:AddOption(t, { TooltipText = name })
     end
-    local cachedUnknownComponents = Cache:GetOr({}, CacheData.UnmappedComponentNames)
-    for t, _ in table.pairsByKeys(cachedUnknownComponents) do
-        private.UnknownComponents[t] = true
+    for t, _ in table.pairsByKeys(self.Logger.UnknownComponents) do
         dualPane:AddOption(t, {
             TooltipText = string.format("Unmapped: %s", t),
             Highlight = true,
@@ -343,9 +466,38 @@ function ImguiECSLogger:CreateComponentWatchWindow()
     self.WatchComponentWindow = win
     self.WatchDualPane = dualPane
     self.WatchDualPane.ChangesSubject:Subscribe(function(c)
-        private.WatchedComponents = self.WatchDualPane:GetOptionsMap()
+        -- Always update local ECSLogger immediately
+        self.Logger.WatchedComponents = self.WatchDualPane:GetSelectedMap()
     end)
-    private.WatchedComponents = self.WatchDualPane:GetOptionsMap() -- init
+    self.WatchDualPane.OnSettle:Subscribe(function(c)
+        -- If using server context, update server when watched components settle, so bulk updates don't freeze
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:SendToServer({
+                Operation = ECSLoggerNetOps.UpdateSetting,
+                Key = "WatchedComponents",
+                Data = self.WatchDualPane:GetSelectedMap()
+            })
+        end
+    end)
+    self.Logger.WatchedComponents = self.WatchDualPane:GetSelectedMap() -- init
+end
+function ImguiECSLogger:WatchComponent(name)
+    if type(name) ~= "string" then return SWarn("ECS: Attempted to watch component without name.") end
+    if self.WatchDualPane then
+        self.WatchDualPane:AddOption(name, nil, true)
+        self:RebuildLog()
+    else
+        return SWarn("ECS: Component Watch window now initialized yet.")
+    end
+end
+function ImguiECSLogger:IgnoreComponent(name)
+    if type(name) ~= "string" then return SWarn("ECS: Attempted to ignore component without name.") end
+    if self.IgnoreDualPane then
+        self.IgnoreDualPane:AddOption(name, nil, true)
+        self:RebuildLog()
+    else
+        return SWarn("ECS: Ignore window not initialized yet.")
+    end
 end
 
 function ImguiECSLogger:CreateIgnoredComponentsWindow()
@@ -362,34 +514,27 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
         TreeParent = win,
     }
 
-    local cachedKnownComponents = Cache:GetOr({}, CacheData.RuntimeComponentNames)
-    for t, name in table.pairsByKeys(cachedKnownComponents) do
+    for t, name in table.pairsByKeys(self.Logger.KnownComponents) do
         dualPane:AddOption(t, { TooltipText = name })
     end
-    local cachedUnknownComponents = Cache:GetOr({}, CacheData.UnmappedComponentNames)
-    for t, _ in table.pairsByKeys(cachedUnknownComponents) do
+    for t, _ in table.pairsByKeys(self.Logger.UnknownComponents) do
         dualPane:AddOption(t, {
             TooltipText = string.format("Unmapped: %s", t),
             Highlight = true,
         })
     end
-    if self.ExcludeSpamComponents then
-        for spam, _ in pairs(private.SpamComponents) do
-            dualPane:AddOption(spam, { TooltipText = "Known spam component" }, true)
-        end
-    end
-    if self.ExcludeStatuses then
-        for sc, _ in pairs(private.StatusComponents) do
-            dualPane:AddOption(sc, { TooltipText = "Spammy status component changes" }, true)
-        end
+
+    -- Grab latest IgnoredComponents and select in dual pane
+    for key,_ in pairs(self.Logger.IgnoredComponents) do
+        dualPane:AddOption(key, nil, true)
     end
 
     self.IgnoreComponentWindow = win
     self.IgnoreDualPane = dualPane
     self.IgnoreDualPane.ChangesSubject:Subscribe(function(c)
-        private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap()
+        -- Always update local logger's ignored components immediately
+        self.Logger.IgnoredComponents = self.IgnoreDualPane:GetSelectedMap()
     end)
-    private.IgnoredComponents = self.IgnoreDualPane:GetOptionsMap() -- init
 
     -- Now that dual pane is created and filled, build out group buttons
     -- Table of ignore category buttons
@@ -429,8 +574,12 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
 
         table.insert(btns, btn)
     end
-    -- Check button status and color based on selection
-    local function checkButtonStatus()
+
+    local function onIgnoreSettle()
+        -- Cache current IgnoredComponents
+        Cache:AddOrChange(CacheData.LastIgnoredComponents, self.Logger.IgnoredComponents)
+
+        -- Check button status and color based on selection
         local options = dualPane:GetOptionsMap()
         ---@param btn ExtuiButton
         for _, btn in ipairs(btns) do
@@ -442,12 +591,21 @@ function ImguiECSLogger:CreateIgnoredComponentsWindow()
                 btn:SetColor("Button", ImguiThemeManager.CurrentTheme.Colors.Button)
             end
         end
+
+        -- If using server logger, update Ignored components on settle, so bulk updates don't freeze
+        if self.UsingServerLogger then
+            NetworkEvents.ECSLogger:SendToServer({
+                Operation = ECSLoggerNetOps.UpdateSetting,
+                Key = "IgnoredComponents",
+                Data = dualPane:GetSelectedMap()
+            })
+        end
     end
-    dualPane.OnSettle:Subscribe(checkButtonStatus)
+    dualPane.OnSettle:Subscribe(onIgnoreSettle)
 
     -- Hmm, shouldn't be necessary, but left pane not visible and buttons didn't update --FIXME
     dualPane:Refresh()
-    checkButtonStatus()
+    onIgnoreSettle()
 end
 
 ---@param entry EntityLogEntry
@@ -465,143 +623,88 @@ function ImguiECSLogger:IsEntryDrawable(entry, filterTable)
     return false
 end
 
-function ImguiECSLogger:StartStopTracing()
-    if self.TickHandler then
-        -- Currently tracing, turn off
-        Ext.Entity.EnableTracing(false)
-        Ext.Entity.ClearTrace()
-        Ext.Events.Tick:Unsubscribe(self.TickHandler)
-        self.TickHandler = nil
-        self.ThrobberWin.Visible = false
-    else
-        -- Not currently tracing, turn on
-        Ext.Entity.EnableTracing(true)
-        self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
-        self.ThrobberWin.Visible = true
-    end
-end
-function ImguiECSLogger:StartTracing()
-    if not self.TickHandler then
-        Ext.Entity.EnableTracing(true)
-        self.TickHandler = Ext.Events.Tick:Subscribe(function () self:OnTick() end)
-    end
-end
+function ImguiECSLogger:WrapLoggerTick()
+    local function errorWarn() SWarn("ECSLogger errored or completed, what is happening.") end
 
-function ImguiECSLogger:StopTracing()
-    Ext.Entity.EnableTracing(false)
-    Ext.Entity.ClearTrace()
-    if self.TickHandler ~= nil then
-        Ext.Events.Tick:Unsubscribe(self.TickHandler)
-    end
-    self.TickHandler = nil
-end
-
-function ImguiECSLogger:OnTick()
-    local trace = Ext.Entity.GetTrace()
-    local function PrintChanges(entity, changes)
-        if not entity then return end
-        if self:EntityHasPrintableChanges(entity, changes) then
-            if self.PrintChangesToConsole then
-                local msg = "\x1b[90m[#" .. self.FrameNo .. "] " .. self:GetEntityNameDecorated(entity) .. ": "
-                if changes.Create then msg = msg .. "\x1b[33m Created" end
-                if changes.Destroy then msg = msg .. "\x1b[31m Destroyed" end
-                print(msg)
+    ---@param change ECSChange
+    local function processChange(change)
+        local entityDisplayName = change.EntityDisplayName
+        local entityName = change.EntityName
+        local useShowName = entityName:sub(1, 8) == "Entity (" or entityName == ""
+        local inspectThisEntity = false
+    
+        local newEntry = EntityLogEntry:New{
+            Entity = change.Entity,
+            OriginatingContext = change.IsServer and "Server" or "Client",
+            EntityUuid = change.Entity and change.Entity.Uuid and change.Entity.Uuid.EntityUuid,
+            HandleInteger = change.HandleInteger,
+            TimeStamp = self.Logger.FrameNo,
+            ShowName = useShowName and entityDisplayName or entityName,
+            ShowColor = useShowName and self:GetEntityColor(entityDisplayName) or Imgui.Colors.White,
+            _Entry = entityName,
+            _FilterableEntry = entityName,
+            _Category = "Unknown"
+        }
+        if newEntry._Entry == "" then newEntry._Entry = entityDisplayName newEntry._FilterableEntry = "UnnamedEntity" end
+        if change.EntityCreated then newEntry._Category = "EntityCreated" end
+        if change.EntityDestroyed then newEntry._Category = "EntityDestroyed" end -- never actually fires, because component is being destroyed instead of entity?
+        if change.EntityDead then newEntry._Category = "EntityDead" end
+        if change.EntityImmediate then newEntry._Category = "Immediate"end
+        if change.EntityIgnore then newEntry._Category = "Ignore" end
+    
+        local componentNames = {}
+        for _,component in pairs(change.ComponentChanges) do
+            local newSub = ""
+            if component.Created then
+                newSub = "+ "
+                newEntry._Category = newEntry._Category == "EntityCreated" and "*Created" or "Created"
+            elseif component.Destroyed then
+                newSub = "- "
+                -- mark entry as destruction event? doesn't seem to otherwise
+                newEntry._Category = newEntry._Category == "EntityDestroyed" and "*Destroyed" or "Destroyed"
+            elseif component.Replicate then
+                newSub = "= "
+            elseif component.OneFrame then
+                newSub = "! "
             end
-            local entityName = self:GetEntityName(entity)
-            local inspectThisEntity = false
-            local dumpThisEntity = false
-
-            local newEntry = EntityLogEntry:New{
-                Entity = entity,
-                TimeStamp = self.FrameNo,
-                _Entry = entityName,
-                _FilterableEntry = entityName,
-                _Category = "Unknown"
-            }
-            if newEntry._Entry == "" then newEntry._Entry = tostring(entity) newEntry._FilterableEntry = "UnnamedEntity" end
-            if changes.Create then newEntry._Category = "EntityCreated" end
-            if changes.Destroy then newEntry._Category = "EntityDestroyed" end -- never actually fires, because component is being destroyed instead of entity?
-            if changes.Dead then newEntry._Category = "EntityDead" end
-            if changes.Immediate then newEntry._Category = "Immediate"end
-            if changes.Ignore then newEntry._Category = "Ignore" end
-
-            local componentNames = {}
-            for _,component in pairs(changes.Components) do
-                if self:IsComponentChangePrintable(entity, component) then
-                    if self.TrackChangeCounts then
-                        if self.ChangeCounts[component.Name] == nil then
-                            self.ChangeCounts[component.Name] = 1
-                        else
-                            self.ChangeCounts[component.Name] = self.ChangeCounts[component.Name] + 1
-                        end
-                    end
-                    
-                    if self.PrintChangesToConsole then
-                        local msg = "\t\x1b[39m" .. component.Name .. ": "
-                        if component.Create then msg = msg .. "\x1b[33m Created" end
-                        if component.Destroy then msg = msg .. "\x1b[31m Destroyed" end
-                        if component.Replicate then msg = msg .. "\x1b[34m Replicated" end
-                        print(msg)
-                    end
-
-                    local newSub = ""
-                    if component.Create then
-                        newsub = "+ "
-                        newEntry._Category = newEntry._Category == "EntityCreated" and "*Created" or "Created"
-                    elseif component.Destroy then
-                        newsub = "- "
-                        -- mark entry as destruction event? doesn't seem to otherwise
-                        newEntry._Category = newEntry._Category == "EntityDestroyed" and "*Destroyed" or "Destroyed"
-                    elseif component.Replicate then
-                        newsub = "= "
-                    elseif component.OneFrame then
-                        newSub = "! "
-                    end
-                    table.insert(componentNames, component.Name)
-                    newEntry:AddSubEntry(newsub..tostring(component.Name))
-                    self.WatchDualPane:AddOption(component.Name)
-                    if not private.KnownComponents[component.Name] then
-                        -- Unmapped component
-                        if not private.UnknownComponents[component.Name] then
-                            -- Really unknown unknown, add locally, update Cache file
-                            private.UnknownComponents[component.Name] = true
-                            Cache:AddOrChange(CacheData.UnmappedComponentNames, private.UnknownComponents)
-                        end
-                    end
-                    if self.AutoInspect and private.WatchedComponents[component.Name] then
-                        inspectThisEntity = true
-                    end
-                    if self.AutoDump and private.WatchedComponents[component.Name] then
-                        dumpThisEntity = true
-                    end
+            table.insert(componentNames, component.Name)
+            newEntry:AddSubEntry(("%s%s%s"):format(newSub, tostring(component.Name), self.Logger.UnknownComponents[component.Name] and "*" or ""))
+            -- Send name to WatchDualPane, just in case it's unseen (ignored if already exists)
+            self.WatchDualPane:AddOption(component.Name)
+    
+            if self.AutoInspect and self.Logger.WatchedComponents[component.Name] then
+                inspectThisEntity = true
+            end
+        end
+        if inspectThisEntity then
+            if change.IsServer then
+                if change.Entity then
+                    Inspector:GetOrCreate(change.Entity, NetworkPropertyInterface)
                 end
-                if dumpThisEntity then
-                    Helpers.Dump(entity, string.format("AutoDump-%s", entityName))
-                end
-                if inspectThisEntity then
-                    -- Inspector:GetOrCreate(entity, LocalPropertyInterface) -- TODO fix extra instances (init order problem?)
-                    Scribe:UpdateInspectTarget(entity)
+            else
+                if change.Entity then
+                    Inspector:GetOrCreate(change.Entity, LocalPropertyInterface) -- TODO fix extra instances (init order problem?)
                 end
             end
-            newEntry.Components = componentNames
-            self:AddLogEntry(newEntry)
-            self.EventCounter.Label = "Events: " .. #self.LogEntries
+            -- Scribe:UpdateInspectTarget(entity)
         end
+        newEntry.Components = componentNames
+        self:AddLogEntry(newEntry)
+        self.EventCounter.Label = "Events: " .. #self.LogEntries
     end
-    if self.WatchedEntity then
-        local changes = trace.Entities[self.WatchedEntity]
-        if changes then
-            PrintChanges(self.WatchedEntity, changes)
+    -- Local ECSLogger
+    self.Logger.OnNewChange:Subscribe(function(change)
+        processChange(change)
+    end, errorWarn, errorWarn)
+    -- Server ECSLogger
+    ---@param msg ECSChange
+    NetworkEvents.ECSLoggerEvent:SetHandler(function(msg)
+        if msg.Uuid then
+            -- Uuid available, grab entity
+            msg.Entity = Ext.Entity.Get(msg.Uuid)
         end
-    else
-        for entity,changes in pairs(trace.Entities) do
-            PrintChanges(entity, changes)
-        end
-    end
-
-    Ext.Entity.ClearTrace()
-    self.FrameNo = self.FrameNo + 1
-    self.FrameCounter.Label = "Frame: " .. self.FrameNo
+        processChange(msg)
+    end)
 end
 
 ---@param entity EntityHandle
@@ -633,209 +736,21 @@ function ImguiECSLogger:GetEntityName(entity)
     return ""
 end
 
----@param entity EntityHandle
-function ImguiECSLogger:GetEntityNameDecorated(entity)
-    local name = self:GetEntityName(entity)
+--- Gets associated color for this entity, generating if necessary
+---@param entityDisplayName string
+---@return vec4
+function ImguiECSLogger:GetEntityColor(entityDisplayName)
+    if not entityDisplayName then return Imgui.Colors.White end
 
-    if name ~= nil and #name > 0 then
-        return "\x1b[36m[" .. name .. "]"
-    else
-        return "\x1b[39m" .. tostring(entity)
-    end
+    if self.EntityColorMap[entityDisplayName] then return self.EntityColorMap[entityDisplayName] end
+
+    -- Use current hue to generate RGB
+    local r,g,b = Helpers.Color.HSVToRGB(self.RunningHue,.65,1)
+    -- Increment hue by about 36 degrees
+    self.RunningHue = (self.RunningHue + 36) % 360
+    -- Normalize RGB (0~255 to 0~1)
+    local color = Helpers.Color.NormalizedRGBA(r,g,b, 1)
+    -- Assign and return
+    self.EntityColorMap[entityDisplayName] = color
+    return color
 end
-
----@param entity EntityHandle
----@param changes EcsECSEntityLog
-function ImguiECSLogger:EntityHasPrintableChanges(entity, changes)
-    if self.EntityCreations ~= nil and self.EntityCreations ~= changes.Create then return false end
-    if self.EntityDeletions ~= nil and self.EntityDeletions ~= changes.Destroy then return false end
-
-    -- TODO switch to private.IgnoredComponents which should be configurable with DualPane
-    if self.ExcludeInterrupts and entity:HasRawComponent("eoc::interrupt::DataComponent") then
-        return false
-    end
-
-    if self.ExcludeBoosts and entity:HasRawComponent("eoc::BoostInfoComponent") then
-        return false
-    end
-
-    if self.ExcludeStatuses and entity:HasRawComponent("esv::status::StatusComponent") then
-        return false
-    end
-
-    if self.ExcludePassives and entity:HasRawComponent("eoc::PassiveComponent") then
-        return false
-    end
-
-    if self.ExcludeInventories and entity:HasRawComponent("eoc::inventory::DataComponent") then
-        return false
-    end
-
-    if self.ExcludeCrowds and entity:HasRawComponent("eoc::crowds::AppearanceComponent") then return false end
-
-    for _,component in pairs(changes.Components) do
-        if self:IsComponentChangePrintable(entity, component) then
-            return true
-        end
-    end
-
-    return false
-end
-
----@param entity EntityHandle
----@param component EcsECSComponentLog
-function ImguiECSLogger:IsComponentChangePrintable(entity, component)
-    -- TODO switch to private.IgnoredComponents which should be configurable with DualPane
-    if self.OneFrameComponents ~= nil and self.OneFrameComponents ~= component.OneFrame then return false end
-    if self.ReplicatedComponents ~= nil and self.ReplicatedComponents ~= component.ReplicatedComponent then return false end
-    if self.ComponentCreations ~= nil and self.ComponentCreations ~= component.Create then return false end
-    if self.ComponentDeletions ~= nil and self.ComponentDeletions ~= component.Destroy then return false end
-    if self.ComponentReplications ~= nil and self.ComponentReplications ~= component.Replicate then return false end
-
-    if self.ExcludeSpamComponents and private.SpamComponents[component.Name] then return false end
-    if self.ExcludeSpamEntities and entity.Uuid and private.SpamEntities[entity.Uuid.EntityUuid] then return false end
-    if self.ExcludeStatuses and private.StatusComponents[component.Name] then return false end
-
-    if self.ExcludeComponents[component.Name] == true then return false end
-    if self.IncludedOnly and self.IncludeComponents[component.Name] ~= true then return false end
-
-    return true
-end
-
-private.SpamComponents = {
-    ['eoc::PathingDistanceChangedOneFrameComponent'] = true,
-    ['eoc::PathingMovementSpeedChangedOneFrameComponent'] = true,
-    ['eoc::animation::AnimationInstanceEventsOneFrameComponent'] = true,
-    ['eoc::animation::BlueprintRefreshedEventOneFrameComponent'] = true,
-    ['eoc::animation::GameplayEventsOneFrameComponent'] = true,
-    ['eoc::animation::TextKeyEventsOneFrameComponent'] = true,
-    ['eoc::animation::TriggeredEventsOneFrameComponent'] = true,
-    ['ls::AnimationBlueprintLoadedEventOneFrameComponent'] = true,
-    ['ls::RotateChangedOneFrameComponent'] = true,
-    ['ls::TranslateChangedOneFrameComponent'] = true,
-    ['ls::VisualChangedEventOneFrameComponent'] = true,
-    ['ls::animation::LoadAnimationSetRequestOneFrameComponent'] = true,
-    ['ls::animation::RemoveAnimationSetsRequestOneFrameComponent'] = true,
-    ['ls::animation::LoadAnimationSetGameplayRequestOneFrameComponent'] = true,
-    ['ls::animation::RemoveAnimationSetsGameplayRequestOneFrameComponent'] = true,
-    ['ls::ActiveVFXTextKeysComponent'] = true,
-    ['ls::InvisibilityVisualComponent'] = true,
-    ['ecl::InvisibilityVisualComponent'] = true,
-    ['ls::LevelComponent'] = true,
-    ['ls::LevelIsOwnerComponent'] = true,
-    ['ls::IsGlobalComponent'] = true,
-    ['ls::SavegameComponent'] = true,
-    ['ls::SaveWithComponent'] = true,
-    ['ls::TransformComponent'] = true,
-    ['ls::ParentEntityComponent'] = true,
-
-    -- Client
-    ['ecl::level::PresenceComponent'] = true,
-    ['ecl::character::GroundMaterialChangedEventOneFrameComponent'] = true,
-
-    -- Replication
-    ['ecs::IsReplicationOwnedComponent'] = true,
-    ['esv::replication::PeersInRangeComponent'] = true,
-
-    -- SFX
-    ['ls::SoundMaterialComponent'] = true,
-    ['ls::SoundComponent'] = true,
-    ['ls::SoundActivatedEventOneFrameComponent'] = true,
-    ['ls::SoundActivatedComponent'] = true,
-    ['ls::SoundUsesTransformComponent'] = true,
-    ['ecl::sound::CharacterSwitchDataComponent'] = true,
-    ['ls::SkeletonSoundObjectTransformComponent'] = true,
-
-    -- Sight & co
-    ['eoc::sight::EntityViewshedComponent'] = true,
-    ['esv::sight::EntityViewshedContentsChangedEventOneFrameComponent'] = true,
-    ['esv::sight::AiGridViewshedComponent'] = true,
-    ['esv::sight::SightEventsOneFrameComponent'] = true,
-    ['esv::sight::ViewshedParticipantsAddedEventOneFrameComponent'] = true,
-    ['eoc::sight::DarkvisionRangeChangedEventOneFrameComponent'] = true,
-    ['eoc::sight::DataComponent'] = true,
-
-    -- Common events/updates
-    ['eoc::inventory::MemberTransformComponent'] = true,
-    ['eoc::translate::ChangedEventOneFrameComponent'] = true,
-    ['esv::status::StatusEventOneFrameComponent'] = true,
-    ['esv::status::TurnStartEventOneFrameComponent'] = true,
-    ['ls::anubis::TaskFinishedOneFrameComponent'] = true,
-    ['ls::anubis::TaskPausedOneFrameComponent'] = true,
-    ['ls::anubis::UnselectedStateComponent'] = true,
-    ['ls::anubis::ActiveComponent'] = true,
-    ['esv::GameTimerComponent'] = true,
-
-    -- Navigation
-    ['navcloud::RegionLoadingComponent'] = true,
-    ['navcloud::RegionLoadedOneFrameComponent'] = true,
-    ['navcloud::RegionsUnloadedOneFrameComponent'] = true,
-    ['navcloud::AgentChangedOneFrameComponent'] = true,
-    ['navcloud::ObstacleChangedOneFrameComponent'] = true,
-    ['navcloud::ObstacleMetaDataComponent'] = true,
-    ['navcloud::ObstacleComponent'] = true,
-    ['navcloud::InRangeComponent'] = true,
-
-    -- AI movement
-    ['eoc::steering::SyncComponent'] = true,
-
-    -- Timelines
-    ['eoc::TimelineReplicationComponent'] = true,
-    ['eoc::SyncedTimelineControlComponent'] = true,
-    ['eoc::SyncedTimelineActorControlComponent'] = true,
-    ['esv::ServerTimelineCreationConfirmationComponent'] = true,
-    ['esv::ServerTimelineDataComponent'] = true,
-    ['esv::ServerTimelineActorDataComponent'] = true,
-    ['eoc::TimelineActorDataComponent'] = true,
-    ['eoc::timeline::ActorVisualDataComponent'] = true,
-    ['ecl::TimelineSteppingFadeComponent'] = true,
-    ['ecl::TimelineAutomatedLookatComponent'] = true,
-    ['ecl::TimelineActorLeftEventOneFrameComponent'] = true,
-    ['ecl::TimelineActorJoinedEventOneFrameComponent'] = true,
-    ['eoc::timeline::steering::TimelineSteeringComponent'] = true,
-    ['esv::dialog::ADRateLimitingDataComponent'] = true,
-    
-    -- Crowd behavior
-    ['esv::crowds::AnimationComponent'] = true,
-    ['esv::crowds::DetourIdlingComponent'] = true,
-    ['esv::crowds::PatrolComponent'] = true,
-    ['eoc::crowds::CustomAnimationComponent'] = true,
-    ['eoc::crowds::ProxyComponent'] = true,
-    ['eoc::crowds::DeactivateCharacterComponent'] = true,
-    ['eoc::crowds::FadeComponent'] = true,
-
-    -- A lot of things sync this one for no reason
-    ['eoc::CanSpeakComponent'] = true,
-
-    -- Animations trigger tag updates
-    ['esv::tags::TagsChangedEventOneFrameComponent'] = true,
-    ['ls::animation::DynamicAnimationTagsComponent'] = true,
-    ['eoc::TagComponent'] = true,
-    ['eoc::trigger::TypeComponent'] = true,
-
-    -- Misc event spam
-    ['esv::spell::SpellPreparedEventOneFrameComponent'] = true,
-    ['esv::interrupt::ValidateOwnersRequestOneFrameComponent'] = true,
-    ['esv::death::DeadByDefaultRequestOneFrameComponent'] = true,
-    ['eoc::DarknessComponent'] = true,
-    ['esv::boost::DelayedDestroyRequestOneFrameComponent'] = true,
-    ['eoc::stats::EntityHealthChangedEventOneFrameComponent'] = true,
-
-    -- Updated based on distance to player
-    ['eoc::GameplayLightComponent'] = true,
-    ['esv::light::GameplayLightChangesComponent'] = true,
-    ['eoc::item::ISClosedAnimationFinishedOneFrameComponent'] = true,
-}
-private.StatusComponents = {
-    ['esv::status::AttemptEventOneFrameComponent'] = true,
-    ['esv::status::AttemptFailedEventOneFrameComponent'] = true,
-    ['esv::status::ApplyEventOneFrameComponent'] = true,
-    ['esv::status::ActivationEventOneFrameComponent'] = true,
-    ['esv::status::DeactivationEventOneFrameComponent'] = true,
-    ['esv::status::RemoveEventOneFrameComponent'] = true
-}
-private.SpamEntities = {
-    ["783884b2-fbee-4376-9c18-6fd99d225ce6"] = true, -- Annoying mephit spawn helper
-}
-
--- TestLogger = ImguiECSLogger:New()
